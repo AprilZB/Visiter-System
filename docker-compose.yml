@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  visitor-backend:
+    build:
+      context: ./visitor-backend
+      dockerfile: Dockerfile
+    container_name: visitor-backend
+    restart: always
+    ports:
+      - "8096:8096"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://10.11.100.202:3306/visitor_system_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root123
+      - VISITOR_OCR_DEFAULT_URL=http://10.11.100.238:8081/ocr
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  visitor-frontend:
+    build:
+      context: ./visitor-frontend
+      dockerfile: Dockerfile
+    container_name: visitor-frontend
+    restart: always
+    ports:
+      - "8097:8097"
+    depends_on:
+      - visitor-backend
+
+networks:
+  default:
+    name: visitor-network

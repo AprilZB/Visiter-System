@@ -1,0 +1,24 @@
+# IDE & System
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Java & Spring Boot
+visitor-backend/target/
+visitor-backend/*.log
+*.jar
+*.war
+
+# Vue & Node.js
+visitor-frontend/node_modules/
+visitor-frontend/dist/
+visitor-frontend/.vite/
+visitor-frontend/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploaded Files
+uploads/
