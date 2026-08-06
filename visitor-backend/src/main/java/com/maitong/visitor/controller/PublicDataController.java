@@ -121,5 +121,23 @@ public class PublicDataController {
         visitorRecordMapper.updateById(record);
         return Result.success("审批结果处理成功", approved);
     }
+
+    /**
+     * 6. 访客从邮箱链接免登根据 visitorToken 获取邀请到访单信息
+     */
+    @GetMapping("/visitor/info-by-token")
+    public Result<com.maitong.visitor.entity.VisitorRecord> getVisitorInfoByToken(@RequestParam("visitorToken") String visitorToken) {
+        if (visitorToken == null || visitorToken.trim().isEmpty()) {
+            return Result.error("无效的访客 Token");
+        }
+        LambdaQueryWrapper<com.maitong.visitor.entity.VisitorRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.maitong.visitor.entity.VisitorRecord::getVisitorToken, visitorToken.trim());
+        com.maitong.visitor.entity.VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
+        if (record == null) {
+            return Result.error("未找到该笔邀请到访单");
+        }
+        return Result.success(record);
+    }
 }
+
 

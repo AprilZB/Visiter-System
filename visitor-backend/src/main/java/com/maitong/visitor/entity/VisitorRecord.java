@@ -26,7 +26,13 @@ public class VisitorRecord {
     private String visitDate;
     private String visitStartTime;
     private String visitEndTime;
+    private String email;
+    private String company;
+    private String visitorToken;
+    private Integer escalated; // 0:未上报, 1:已上报直属主管
+    private LocalDateTime escalatedAt;
     private String status;
+
  // PENDING_APPROVAL, APPROVED, NDA_SIGNED, ENTERED, REJECTED, EXPIRED
     private Integer ndaSigned; // 0:未签, 1:已签
     private LocalDateTime ndaSignedAt;
@@ -109,7 +115,23 @@ public class VisitorRecord {
     public String getVisitEndTime() { return visitEndTime; }
     public void setVisitEndTime(String visitEndTime) { this.visitEndTime = visitEndTime; }
 
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getCompany() { return company; }
+    public void setCompany(String company) { this.company = company; }
+
+    public String getVisitorToken() { return visitorToken; }
+    public void setVisitorToken(String visitorToken) { this.visitorToken = visitorToken; }
+
+    public Integer getEscalated() { return escalated; }
+    public void setEscalated(Integer escalated) { this.escalated = escalated; }
+
+    public LocalDateTime getEscalatedAt() { return escalatedAt; }
+    public void setEscalatedAt(LocalDateTime escalatedAt) { this.escalatedAt = escalatedAt; }
+
     public String getApproveToken() { return approveToken; }
+
 
     public void setApproveToken(String approveToken) { this.approveToken = approveToken; }
 

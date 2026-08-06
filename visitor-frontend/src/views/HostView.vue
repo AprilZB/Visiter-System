@@ -1,103 +1,85 @@
 <template>
   <div class="host-container">
-    <van-nav-bar title="钉钉微应用 - 员工访客协同" />
+    <van-nav-bar title="浙江脉通智造 - 内部员工访客预预约" />
 
-    <!-- 员工免登个人信息 -->
-    <div class="user-card">
-      <div class="user-avatar">{{ currentUser.name ? currentUser.name[0] : '员' }}</div>
-      <div class="user-info">
-        <div class="user-name">{{ currentUser.name || '内部员工' }} <van-tag type="primary">已钉钉免登</van-tag></div>
-        <div class="user-dept">工号: {{ currentUser.workNo }} | 部门: {{ currentUser.deptName }}</div>
-      </div>
-    </div>
+    <!-- 场景 A 批量预约面板 (去登录，面向员工快捷发送邮件) -->
+    <div class="form-box" style="padding: 12px 8px;">
+      <van-notice-bar left-icon="info-o" text="录入多名来访人员后提交，系统将自动生成唯一 Token 邀请函发送至各访客邮箱。" />
 
-    <!-- 选项卡切换 -->
-    <van-tabs v-model:active="activeTab" sticky>
-      <!-- 标签 1: 盲来实时待办审批 -->
-      <van-tab title="待办审批">
-        <div v-if="pendingList.length === 0" class="empty-box">
-          <van-empty description="暂无待处理的现场盲来申请" />
-        </div>
-        <div v-else class="card-list">
-          <div v-for="item in pendingList" :key="item.id" class="approve-card">
-            <div class="card-header">
-              <span class="visitor-name">{{ item.visitorName }}</span>
-              <van-tag type="warning">待审批</van-tag>
-            </div>
-            <div class="card-body">
-              <p><b>访客手机:</b> {{ item.phone }}</p>
-              <p><b>身份证:</b> {{ item.idCardMasked }}</p>
-              <p><b>来访事由:</b> {{ item.visitPurpose }}</p>
-              <p><b>申请时间:</b> {{ formatTime(item.createdAt) }}</p>
-            </div>
-            <div class="card-actions">
-              <van-button size="small" type="danger" plain @click="handleApprove(item.id, false)">拒绝到访</van-button>
-              <van-button size="small" type="primary" style="margin-left: 8px;" @click="handleApprove(item.id, true)">同意放行</van-button>
-            </div>
-          </div>
-        </div>
-      </van-tab>
+      <van-form @submit="submitBatchInvite" style="margin-top: 12px;">
+        <van-cell-group inset title="到访单位与事由信息">
+          <van-field v-model="batchForm.company" label="来访单位" placeholder="如：上海某某医疗科技有限公司" required :rules="[{ required: true }]" />
+          
+          <van-field
+            v-model="batchForm.visitDate"
+            is-link
+            readonly
+            label="到访日期"
+            placeholder="请选择拟到访日期"
+            required
+            :rules="[{ required: true }]"
+            @click="showDatePicker = true"
+          />
+          <van-calendar v-model:show="showDatePicker" @confirm="onDateConfirm" />
 
-      <!-- 标签 2: 主动预约邀约 (场景 A) -->
-      <van-tab title="发起预约">
-        <div class="form-box">
-          <van-form @submit="submitInvite">
-            <van-cell-group inset>
-              <van-field v-model="inviteForm.visitorName" label="访客姓名" placeholder="来访人员姓名" required :rules="[{ required: true }]" />
-              <van-field v-model="inviteForm.phone" label="访客手机号" placeholder="用于接收预约通知" type="tel" required :rules="[{ required: true }]" />
-              <van-field v-model="inviteForm.idCard" label="身份证号" placeholder="预填/让访客自行识别" />
-              <!-- 预约事由下拉选择 (与访客端保持字典一致) -->
-              <van-field
-                v-model="inviteForm.visitPurpose"
-                is-link
-                readonly
-                name="purpose"
-                label="预约事由"
-                placeholder="请选择预约事由"
-                required
-                :rules="[{ required: true }]"
-                @click="showReasonPicker = true"
-              />
-              <van-popup v-model:show="showReasonPicker" position="bottom">
-                <van-picker
-                  :columns="reasonColumns"
-                  @confirm="onReasonConfirm"
-                  @cancel="showReasonPicker = false"
-                />
-              </van-popup>
-            </van-cell-group>
+          <van-field
+            v-model="batchTimeRangeDisplay"
+            is-link
+            readonly
+            label="到访时间段"
+            placeholder="选择到访时间段"
+            required
+            :rules="[{ required: true }]"
+            @click="showTimePicker = true"
+          />
+          <van-popup v-model:show="showTimePicker" position="bottom">
+            <van-picker :columns="timeRangeColumns" @confirm="onTimeRangeConfirm" @cancel="showTimePicker = false" />
+          </van-popup>
 
+          <van-field
+            v-model="batchForm.visitPurpose"
+            is-link
+            readonly
+            label="来访事由"
+            placeholder="请选择来访事由"
+            required
+            :rules="[{ required: true }]"
+            @click="showReasonPicker = true"
+          />
+          <van-popup v-model:show="showReasonPicker" position="bottom">
+            <van-picker :columns="reasonColumns" @confirm="onReasonConfirm" @cancel="showReasonPicker = false" />
+          </van-popup>
+        </van-cell-group>
 
-            <div style="margin: 16px;">
-              <van-button round block type="primary" native-type="submit" :loading="inviteLoading">
-                生成预约邀约链接
+        <!-- 动态添加多名来访人员 -->
+        <van-cell-group inset title="来访人员名单 (支持添加多人)" style="margin-top: 16px;">
+          <div v-for="(v, index) in batchForm.visitors" :key="index" style="padding: 12px 16px; border-bottom: 1px dashed #ebedf0; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: bold; color: #1989fa;">人员 #{{ index + 1 }}</span>
+              <van-button v-if="batchForm.visitors.length > 1" size="mini" type="danger" plain @click="removeVisitor(index)">
+                删除
               </van-button>
             </div>
-          </van-form>
-        </div>
-      </van-tab>
-
-      <!-- 标签 3: 我约请的访客列表 & NDA 协议签署状态 -->
-      <van-tab title="预约记录">
-        <div class="card-list">
-          <div v-for="item in recordList" :key="item.id" class="record-card">
-            <div class="record-header">
-              <span>{{ item.visitorName }} ({{ item.phone }})</span>
-              <van-tag :type="getStatusTagType(item.status)">{{ getStatusText(item) }}</van-tag>
-            </div>
-            <div class="record-body">
-              <p><b>场景:</b> {{ item.scenario === 'A' ? '员工预预约' : '现场盲扫' }}</p>
-              <p><b>保密协议:</b> 
-                <span :class="item.ndaSigned === 1 ? 'text-green' : 'text-red'">
-                  {{ item.ndaSigned === 1 ? '已签署 (存证完成)' : '未签署 (拦截中)' }}
-                </span>
-              </p>
-              <p><b>到达状态:</b> {{ item.status === 'ENTERED' ? '已通过门岗入园' : '未到访核销' }}</p>
-            </div>
+            <van-field v-model="v.visitorName" label="姓名" placeholder="来访人员真实姓名" required :rules="[{ required: true }]" />
+            <van-field v-model="v.phone" label="手机号" placeholder="访客手机号码" type="tel" required :rules="[{ required: true }]" />
+            <van-field v-model="v.email" label="电子邮箱" placeholder="接收专属邀请函的 Email" type="email" required :rules="[{ required: true }]" />
           </div>
+
+          <div style="padding: 12px 16px;">
+            <van-button size="small" icon="plus" type="primary" plain block @click="addVisitor">
+              + 添加来访人员
+            </van-button>
+          </div>
+        </van-cell-group>
+
+        <div style="margin: 20px 16px;">
+          <van-button round block type="primary" native-type="submit" :loading="submitLoading" size="large">
+            发送邀请函到各访客邮箱
+          </van-button>
         </div>
-      </van-tab>
-    </van-tabs>
+      </van-form>
+    </div>
+
 
     <!-- 专属加密 Token 钉钉免密一键审批弹窗 -->
     <van-popup v-model:show="showTokenApprovalModal" round position="center" :style="{ width: '90%', padding: '20px' }">
@@ -145,25 +127,71 @@ import { showToast, showSuccessToast, showFailToast } from 'vant'
 import axios from 'axios'
 
 
-const activeTab = ref(0)
-const currentUser = ref({})
-const pendingList = ref([])
-const recordList = ref([])
-const inviteLoading = ref(false)
+const todayStr = new Date().toISOString().split('T')[0]
+const submitLoading = ref(false)
 
-const inviteForm = reactive({
-  scenario: 'A',
-  visitorName: '',
-  phone: '',
-  idCard: '',
-  visitPurpose: '商务交流',
-  hostUserId: 1
-})
-
+const batchTimeRangeDisplay = ref('09:00 ~ 18:00 (全天段)')
+const showDatePicker = ref(false)
+const showTimePicker = ref(false)
 const showReasonPicker = ref(false)
 const reasonList = ref([])
 
+const timeRangeColumns = [
+  { text: '08:30 ~ 11:30 (上午段)', start: '08:30', end: '11:30' },
+  { text: '13:30 ~ 17:30 (下午段)', start: '13:30', end: '17:30' },
+  { text: '09:00 ~ 18:00 (全天段)', start: '09:00', end: '18:00' },
+  { text: '18:00 ~ 21:00 (夜班段)', start: '18:00', end: '21:00' }
+]
+
 const reasonColumns = computed(() => reasonList.value.map(r => ({ text: r.reasonName, value: r.reasonName })))
+
+const batchForm = reactive({
+  company: '',
+  visitDate: todayStr,
+  visitStartTime: '09:00',
+  visitEndTime: '18:00',
+  visitPurpose: '商务洽谈',
+  hostUserId: 1,
+  visitors: [
+    { visitorName: '', phone: '', email: '' }
+  ]
+})
+
+const addVisitor = () => {
+  batchForm.visitors.push({ visitorName: '', phone: '', email: '' })
+}
+
+const removeVisitor = (index) => {
+  if (batchForm.visitors.length > 1) {
+    batchForm.visitors.splice(index, 1)
+  }
+}
+
+const onDateConfirm = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  batchForm.visitDate = `${y}-${m}-${d}`
+  showDatePicker.value = false
+}
+
+const onTimeRangeConfirm = (val) => {
+  const selected = val && val.selectedOptions && val.selectedOptions[0] ? val.selectedOptions[0] : null
+  if (selected) {
+    batchTimeRangeDisplay.value = selected.text
+    batchForm.visitStartTime = selected.start
+    batchForm.visitEndTime = selected.end
+    showTimePicker.value = false
+  }
+}
+
+const onReasonConfirm = (val) => {
+  const selected = val && val.selectedOptions && val.selectedOptions[0] ? val.selectedOptions[0] : null
+  if (selected) {
+    batchForm.visitPurpose = selected.text
+    showReasonPicker.value = false
+  }
+}
 
 const loadReasons = async () => {
   try {
@@ -171,53 +199,30 @@ const loadReasons = async () => {
     if (res.data.code === 200) {
       reasonList.value = res.data.data
       if (reasonList.value.length > 0) {
-        inviteForm.visitPurpose = reasonList.value[0].reasonName
+        batchForm.visitPurpose = reasonList.value[0].reasonName
       }
     }
   } catch (e) {}
 }
 
-const onReasonConfirm = (val) => {
-  const selected = val && val.selectedOptions && val.selectedOptions[0] ? val.selectedOptions[0] : null
-  if (selected) {
-    inviteForm.visitPurpose = selected.text
-    showReasonPicker.value = false
-  }
-}
-
-const autoLogin = async () => {
+const submitBatchInvite = async () => {
+  submitLoading.value = true
   try {
-    const res = await axios.post('/api/host/login', { authCode: 'MT001' })
+    const res = await axios.post('/api/host/batch-invite', batchForm)
     if (res.data.code === 200) {
-      currentUser.value = res.data.data
-      inviteForm.hostUserId = currentUser.value.id || 1
-      loadPendingList()
-      loadRecordList()
-      loadReasons()
+      showSuccessToast('已成功派发到访邀请函邮件！')
+      batchForm.company = ''
+      batchForm.visitors = [{ visitorName: '', phone: '', email: '' }]
+    } else {
+      showFailToast(res.data.message || '发送失败')
     }
   } catch (e) {
-    showFailToast('钉钉免登连接失败')
+    showFailToast('提交发生网络错误')
+  } finally {
+    submitLoading.value = false
   }
 }
 
-
-const loadPendingList = async () => {
-  try {
-    const res = await axios.get(`/api/host/pending?hostUserId=${currentUser.value.id || 1}`)
-    if (res.data.code === 200) {
-      pendingList.value = res.data.data
-    }
-  } catch (e) {}
-}
-
-const loadRecordList = async () => {
-  try {
-    const res = await axios.get(`/api/host/records?hostUserId=${currentUser.value.id || 1}`)
-    if (res.data.code === 200) {
-      recordList.value = res.data.data
-    }
-  } catch (e) {}
-}
 
 const handleApprove = async (recordId, agree) => {
   try {
@@ -338,9 +343,10 @@ const handleTokenApprove = async (approved) => {
 }
 
 onMounted(() => {
-  autoLogin()
+  loadReasons()
   checkApproveTokenUrl()
 })
+
 
 </script>
 

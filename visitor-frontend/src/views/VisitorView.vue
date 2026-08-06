@@ -241,9 +241,14 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
+
+import { useRoute } from 'vue-router'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
 import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
+
+const route = useRoute()
+
 
 const getFullPdfUrl = (url) => {
   if (!url) return ''
@@ -663,11 +668,44 @@ const startPolling = () => {
   timer = setInterval(checkStatus, 3000)
 }
 
+const checkVisitorTokenUrl = async () => {
+  let token = (route && route.query && route.query.visitorToken) ? route.query.visitorToken : null
+  if (!token) {
+    token = new URLSearchParams(window.location.search).get('visitorToken')
+  }
+
+  if (token) {
+    try {
+      showToast({ type: 'loading', message: '正在加载到访邀请单...', duration: 0 })
+      const res = await axios.get(`/api/public/visitor/info-by-token?visitorToken=${encodeURIComponent(token)}`)
+      showToast().clear()
+      if (res.data.code === 200 && res.data.data) {
+        const data = res.data.data
+        form.visitorName = data.visitorName || ''
+        form.phone = data.phone || ''
+        form.visitDate = data.visitDate || ''
+        form.visitStartTime = data.visitStartTime || ''
+        form.visitEndTime = data.visitEndTime || ''
+        visitorRecord.value = data
+        
+        showSuccessToast('已成功载入邮件邀请信息！')
+        if (data.status === 'APPROVED' && data.ndaSigned !== 1) {
+          showNdaModal.value = true
+        }
+      }
+    } catch (e) {
+      showToast().clear()
+    }
+  }
+}
+
 onMounted(() => {
   fetchNdaTemplate()
   loadDepts()
   loadReasons()
+  checkVisitorTokenUrl()
 })
+
 
 
 onUnmounted(() => {

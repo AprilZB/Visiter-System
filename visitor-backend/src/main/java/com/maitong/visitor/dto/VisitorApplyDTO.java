@@ -11,6 +11,10 @@ public class VisitorApplyDTO {
     private Long hostUserId;
     private String visitPurpose;
     private String visitTime; // YYYY-MM-DD HH:mm:ss
+    private String visitDate;
+    private String visitStartTime;
+    private String visitEndTime;
+
 
     public String getScenario() { return scenario; }
     public void setScenario(String scenario) { this.scenario = scenario; }
