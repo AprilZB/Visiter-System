@@ -320,15 +320,24 @@ const checkApproveTokenUrl = async () => {
     tokenLoading.value = true
     try {
       const res = await axios.get(`/api/public/host/apply-info?approveToken=${encodeURIComponent(token)}`)
-      if (res.data.code === 200 && res.data.data) {
+      if (res.data && res.data.code === 200 && res.data.data) {
         tokenRecord.value = res.data.data
       } else {
         tokenRecord.value = null
+        showFailToast(res.data ? res.data.message : '查询审批单信息失败')
       }
     } catch (e) {
+      tokenRecord.value = null
+      showFailToast('网络连接失败，请检查服务是否可用')
+    } finally {
+      tokenLoading.value = false
     }
+  } else {
+    hasApproveToken.value = false
+    tokenLoading.value = false
   }
 }
+
 
 
 const handleTokenApprove = async (approved) => {
