@@ -830,7 +830,7 @@ const handlePdfUploadError = () => {
 
 const handleActivateNda = async (row) => {
   if (!isLoggedIn.value) {
-    ElMessage.warning('请先完成管理员登录后再切换生效版本！')
+    ElMessage.warning('请先完成管理员身份验证后再切换生效版本！')
     loginVisible.value = true
     return
   }
@@ -847,17 +847,23 @@ const handleActivateNda = async (row) => {
     const token = sessionStorage.getItem('adminToken') || ''
     const res = await axios.post(`/api/admin/nda/activate/${row.id}`, {}, { headers: { Authorization: token } })
     if (res.data.code === 200) {
-      ElMessage.success(res.data.message)
+      ElMessage.success(res.data.data || res.data.message || '生效版本已切换成功！')
       loadNdaTemplates()
     } else {
       ElMessage.error(res.data.message || '切换失败')
     }
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('切换处理发生异常')
+      const errMsg = e.response?.data?.message || e.message || '网络连接或权限验证发生异常'
+      ElMessage.error(errMsg)
+      if (e.response?.status === 401) {
+        isLoggedIn.value = false
+        loginVisible.value = true
+      }
     }
   }
 }
+
 
 
 const visitorList = ref([])
