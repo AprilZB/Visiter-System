@@ -24,9 +24,22 @@
     <div class="scan-card">
       <div class="scan-title">门岗通行二维码核验</div>
       
+      <!-- 隐藏的原生拍照/相册识别 input (完美兼容 HTTP IP 环境) -->
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style="display: none;"
+        @change="handleFileScan"
+      />
+
       <div style="margin-bottom: 12px; display: flex; gap: 8px;">
-        <van-button block round type="primary" icon="scan" @click="startCameraScanner">
-          📷 启动手机摄像头扫码
+        <van-button block round type="primary" icon="photograph" @click="triggerPhotoScan">
+          📷 拍照/上传二维码识别
+        </van-button>
+        <van-button block round type="primary" plain icon="scan" @click="startCameraScanner">
+          🎥 实时镜头扫码
         </van-button>
       </div>
 
@@ -34,7 +47,7 @@
         v-model="passTokenInput"
         center
         clearable
-        placeholder="对准扫码枪扫描 / 摄像头扫码 / 粘贴凭证"
+        placeholder="对准扫码枪扫描 / 拍照 / 粘贴凭证"
         label="通行凭证"
         @keyup.enter="handleScan"
       >
@@ -43,9 +56,10 @@
         </template>
       </van-field>
       <div style="font-size: 11px; color: #969799; margin-top: 6px; text-align: right;">
-        * 支持红外扫码枪对准扫码或点击上方启动手机镜头扫码
+        * 支持拍照扫码、红外扫码枪对准扫描或手机实时镜头扫码
       </div>
     </div>
+
 
     <!-- 手机摄像头扫码弹窗 -->
     <van-popup v-model:show="showCameraModal" round position="center" :style="{ width: '90%', padding: '16px', textAlign: 'center' }" @closed="stopCameraScanner">
@@ -122,12 +136,44 @@ const showCameraModal = ref(false)
 const visitorPageUrl = ref(window.location.origin + '/visitor')
 
 const passTokenInput = ref('')
+const fileInputRef = ref(null)
 
 const scanning = ref(false)
 const confirmLoading = ref(false)
 const scanResult = ref(null)
 
 let html5QrcodeScanner = null
+
+const triggerPhotoScan = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
+
+const handleFileScan = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  showToast({ message: '正在解析二维码...', duration: 1000 })
+  try {
+    const html5Qrcode = new Html5Qrcode("qr-reader")
+    const decodedText = await html5Qrcode.scanFile(file, true)
+    
+    let token = decodedText
+    if (decodedText && decodedText.includes('token=')) {
+      const match = decodedText.match(/token=([^&]+)/)
+      if (match && match[1]) token = match[1]
+    }
+    passTokenInput.value = token
+    showSuccessToast('二维码识别成功！')
+    handleScan()
+  } catch (e) {
+    showFailToast('无法识别该图片中的二维码，请拍摄清晰原图')
+  } finally {
+    event.target.value = ''
+  }
+}
+
 
 const startCameraScanner = async () => {
   showCameraModal.value = true
