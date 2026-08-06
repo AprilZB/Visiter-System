@@ -135,18 +135,21 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="title" label="协议标题" min-width="220" />
-                <el-table-column label="PDF保密协议文档" min-width="190">
+                <el-table-column label="PDF保密协议文档" min-width="190" align="center">
                   <template #default="scope">
-                    <div v-if="scope.row.pdfUrl" style="display: flex; align-items: center; gap: 8px;">
-                      <el-link type="primary" icon="Document" :href="getFullPdfUrl(scope.row.pdfUrl)" target="_blank">
-                        PDF 协议文件
-                      </el-link>
-                      <el-button size="small" type="info" text icon="View" @click="previewPdfModal(scope.row.pdfUrl)">预览</el-button>
-                    </div>
-
+                    <el-button
+                      v-if="scope.row.pdfUrl"
+                      type="primary"
+                      size="small"
+                      icon="Document"
+                      @click="previewPdfModal(scope.row.pdfUrl)"
+                    >
+                      弹窗在线预览 PDF
+                    </el-button>
                     <span v-else style="color: #909399; font-size: 13px;">无 PDF (纯文本版)</span>
                   </template>
                 </el-table-column>
+
                 <el-table-column label="生效状态" width="140" align="center">
                   <template #default="scope">
                     <el-tag v-if="scope.row.isActive === 1" type="success" effect="dark">
@@ -419,12 +422,32 @@
     </el-dialog>
 
 
-    <!-- PDF 预览弹窗 -->
-    <el-dialog v-model="pdfPreviewVisible" title="保密协议 (NDA) PDF 文档在线预览" width="80%">
-      <div style="height: 75vh;">
-        <iframe v-if="currentPreviewPdfUrl" :src="currentPreviewPdfUrl" style="width: 100%; height: 100%; border: none;"></iframe>
+    <!-- PDF 在线弹窗预览 -->
+    <el-dialog
+      v-model="pdfPreviewVisible"
+      title="保密协议 (NDA) 官方盖章 PDF 在线预览"
+      width="85%"
+      top="4vh"
+      destroy-on-close
+      append-to-body
+    >
+      <div style="height: 76vh; width: 100%; background: #525659; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <iframe
+          v-if="currentPreviewPdfUrl"
+          :src="currentPreviewPdfUrl"
+          style="width: 100%; height: 100%; border: none;"
+        ></iframe>
       </div>
+      <template #footer>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <a :href="currentPreviewPdfUrl" target="_blank" style="color: #409eff; font-size: 13px; text-decoration: underline;">
+            🔗 若当前浏览器被系统插件拦截渲染，点此在独立标签页打开 PDF 官方源文件
+          </a>
+          <el-button type="primary" @click="pdfPreviewVisible = false">关闭在线预览</el-button>
+        </div>
+      </template>
     </el-dialog>
+
 
 
     <!-- 新增事由弹窗 -->
