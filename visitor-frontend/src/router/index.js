@@ -49,7 +49,13 @@ router.beforeEach((to, from, next) => {
   if (to.meta.title) {
     document.title = to.meta.title + ' - 浙江脉通智造'
   }
+  // 全局拦截：如果在任何页面链接（包括根路径、Portal等）中带有 approveToken 参数，且当前非 Host 路由，自动重定向至 Host 审批页
+  const token = to.query.approveToken || new URLSearchParams(window.location.search).get('approveToken')
+  if (token && to.name !== 'Host') {
+    return next({ name: 'Host', query: { approveToken: token } })
+  }
   next()
 })
+
 
 export default router

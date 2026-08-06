@@ -280,21 +280,36 @@ const tokenRecord = ref(null)
 const tokenApproving = ref(false)
 
 const checkApproveTokenUrl = async () => {
-  const token = (route && route.query && route.query.approveToken) ? route.query.approveToken : new URLSearchParams(window.location.search).get('approveToken')
+  let token = (route && route.query && route.query.approveToken) ? route.query.approveToken : null
+  if (!token) {
+    token = new URLSearchParams(window.location.search).get('approveToken')
+  }
+  if (!token && window.location.href.includes('approveToken=')) {
+    const parts = window.location.href.split('approveToken=')
+    if (parts.length > 1) {
+      token = parts[1].split('&')[0].split('#')[0]
+    }
+  }
+
   if (token) {
     try {
-      const res = await axios.get(`/api/public/host/apply-info?approveToken=${token}`)
-      if (res.data.code === 200) {
+      showToast({ type: 'loading', message: '正在验证极速审批凭证...', duration: 0 })
+      const res = await axios.get(`/api/public/host/apply-info?approveToken=${encodeURIComponent(token)}`)
+      showToast().clear()
+      if (res.data.code === 200 && res.data.data) {
         tokenRecord.value = res.data.data
         showTokenApprovalModal.value = true
+        showSuccessToast('加密凭证校验通过！')
       } else {
-        showFailToast(res.data.message || '凭证链接无效')
+        showFailToast(res.data.message || '审批链接无效或已被处理')
       }
     } catch (e) {
-      showFailToast('查询审批凭证失败')
+      showToast().clear()
+      showFailToast('网络连接失败，请检查服务地址')
     }
   }
 }
+
 
 const handleTokenApprove = async (approved) => {
   if (!tokenRecord.value || !tokenRecord.value.approveToken) return
