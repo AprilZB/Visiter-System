@@ -203,19 +203,21 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="手写电子签名" width="130">
+              <el-table-column label="手写电子签名" width="150" align="center">
                 <template #default="scope">
-                  <el-image
-                    v-if="scope.row.signatureBase64"
-                    :src="scope.row.signatureBase64"
-                    :preview-src-list="[scope.row.signatureBase64]"
-                    fit="contain"
-                    style="width: 90px; height: 36px; border: 1px dashed #dcdfe6; border-radius: 4px; background: #fff;"
-                    preview-teleported
-                  />
+                  <div v-if="scope.row.signatureBase64" style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                    <el-image
+                      :src="scope.row.signatureBase64"
+                      :preview-src-list="[scope.row.signatureBase64]"
+                      fit="contain"
+                      style="width: 100px; height: 40px; border: 1px solid #dcdfe6; border-radius: 4px; background: #fafafa; cursor: pointer;"
+                      preview-teleported
+                    />
+                  </div>
                   <el-tag v-else type="info" size="small">未采集签名</el-tag>
                 </template>
               </el-table-column>
+
               <el-table-column prop="ndaVersion" label="协议版本" width="90" />
               <el-table-column prop="clientIp" label="签署 IP" width="130" />
               <el-table-column prop="hashChain" label="SHA-256 存证哈希链" show-overflow-tooltip />
