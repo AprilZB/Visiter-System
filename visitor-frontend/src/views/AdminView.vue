@@ -431,12 +431,19 @@
       destroy-on-close
       append-to-body
     >
-      <div style="height: 76vh; width: 100%; background: #525659; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-        <iframe
+      <div style="height: 76vh; width: 100%; background: #525659; border-radius: 6px; overflow: hidden; position: relative;">
+        <object
           v-if="currentPreviewPdfUrl"
-          :src="currentPreviewPdfUrl"
-          style="width: 100%; height: 100%; border: none;"
-        ></iframe>
+          :data="currentPreviewPdfUrl"
+          type="application/pdf"
+          width="100%"
+          height="100%"
+        >
+          <iframe
+            :src="currentPreviewPdfUrl"
+            style="width: 100%; height: 100%; border: none;"
+          ></iframe>
+        </object>
       </div>
       <template #footer>
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -447,6 +454,7 @@
         </div>
       </template>
     </el-dialog>
+
 
 
 
@@ -784,6 +792,9 @@ const uploadHeaders = computed(() => {
   }
 })
 
+const pdfPreviewVisible = ref(false)
+const currentPreviewPdfUrl = ref('')
+
 const getFullPdfUrl = (url) => {
   if (!url) return ''
   if (url.startsWith('/')) {
@@ -793,10 +804,15 @@ const getFullPdfUrl = (url) => {
 }
 
 const previewPdfModal = (url) => {
-  if (!url) return
+  if (!url) {
+    ElMessage.warning('暂无可预览的 PDF 文件')
+    return
+  }
   currentPreviewPdfUrl.value = getFullPdfUrl(url)
   pdfPreviewVisible.value = true
+  ElMessage.info('正在载入 PDF 官方协议...')
 }
+
 
 
 const handlePdfUploadSuccess = (response) => {
