@@ -27,7 +27,9 @@ public class VisitorRecord {
     private Integer ndaSigned; // 0:未签, 1:已签
     private LocalDateTime ndaSignedAt;
     private String passToken;
+    private String approveToken;
     private String approvedBy;
+
     private LocalDateTime approvedAt;
     private String verifiedBy;
     private LocalDateTime verifiedAt;
@@ -94,7 +96,11 @@ public class VisitorRecord {
     public LocalDateTime getVerifiedAt() { return verifiedAt; }
     public void setVerifiedAt(LocalDateTime verifiedAt) { this.verifiedAt = verifiedAt; }
 
+    public String getApproveToken() { return approveToken; }
+    public void setApproveToken(String approveToken) { this.approveToken = approveToken; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
+
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }

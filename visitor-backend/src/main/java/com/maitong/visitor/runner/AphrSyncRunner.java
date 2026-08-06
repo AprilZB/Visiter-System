@@ -36,9 +36,10 @@ public class AphrSyncRunner implements ApplicationRunner {
                     conn.createStatement().execute("ALTER TABLE sys_nda_templates ADD COLUMN pdf_url VARCHAR(500)");
                 } catch (Exception ignored) {}
                 try {
-                    conn.createStatement().execute("UPDATE sys_nda_templates SET created_by = 'Admin' WHERE created_by LIKE '%张勃%' OR created_by LIKE '%Admin(%'");
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN approve_token VARCHAR(100)");
                 } catch (Exception ignored) {}
             }
+
         } catch (Exception ignored) {}
 
 

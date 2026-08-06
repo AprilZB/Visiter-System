@@ -27,19 +27,23 @@ public class PublicDataController {
     @Autowired
     private SysVisitReasonMapper sysVisitReasonMapper;
 
+    @Autowired
+    private com.maitong.visitor.mapper.VisitorRecordMapper visitorRecordMapper;
+
     /**
-     * 1. 获取未屏蔽的可选部门列表 (自动过滤屏蔽防骚扰部门)
+     * 1. 获取未屏蔽的可选部门列表 (带出一级/二级全路径，并自动过滤屏蔽部门)
      */
     @GetMapping("/depts")
     public Result<List<SysDeptSync>> getPublicDepts() {
         LambdaQueryWrapper<SysDeptSync> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysDeptSync::getIsShielded, 0)
                .orderByAsc(SysDeptSync::getId);
-        return Result.success(sysDeptSyncMapper.selectList(wrapper));
+        List<SysDeptSync> list = sysDeptSyncMapper.selectList(wrapper);
+        return Result.success(list);
     }
 
     /**
-     * 2. 先选部门后，级联获取该部门下的员工列表
+     * 2. 选定部门后级联查询在职员工 (强力过滤离职人员)
      */
     @GetMapping("/users-by-dept")
     public Result<List<SysUserSync>> getUsersByDept(@RequestParam(value = "deptName", required = false) String deptName,
@@ -50,6 +54,10 @@ public class PublicDataController {
         } else if (deptId != null) {
             wrapper.eq(SysUserSync::getDeptId, deptId);
         }
+        // 关键过滤：绝对不带出离职员工！
+        wrapper.and(w -> w.isNull(SysUserSync::getStatus)
+                         .or()
+                         .notIn(SysUserSync::getStatus, "离职", "已离职", "Terminated", "Inactive"));
         wrapper.orderByAsc(SysUserSync::getId);
         return Result.success(sysUserSyncMapper.selectList(wrapper));
     }
@@ -64,4 +72,54 @@ public class PublicDataController {
                .orderByAsc(SysVisitReason::getSortOrder);
         return Result.success(sysVisitReasonMapper.selectList(wrapper));
     }
+
+    /**
+     * 4. 免登根据唯一加密 Token 查询单笔访客申请信息
+     */
+    @GetMapping("/host/apply-info")
+    public Result<com.maitong.visitor.entity.VisitorRecord> getApplyInfoByToken(@RequestParam("approveToken") String approveToken) {
+        if (approveToken == null || approveToken.trim().isEmpty()) {
+            return Result.error("无效的审批 Token 链接");
+        }
+        LambdaQueryWrapper<com.maitong.visitor.entity.VisitorRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.maitong.visitor.entity.VisitorRecord::getApproveToken, approveToken.trim());
+        com.maitong.visitor.entity.VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
+        if (record == null) {
+            return Result.error("未找到该笔到访申请或链接已失效");
+        }
+        return Result.success(record);
+    }
+
+    /**
+     * 5. 免登使用唯一加密 Token 进行一键快捷审批 (同意/拒绝)
+     */
+    @PostMapping("/host/approve-by-token")
+    public Result<Boolean> approveByToken(@RequestBody java.util.Map<String, Object> body) {
+        String approveToken = body.get("approveToken") != null ? body.get("approveToken").toString() : null;
+        Boolean approved = body.get("approved") != null ? Boolean.parseBoolean(body.get("approved").toString()) : false;
+
+        if (approveToken == null || approveToken.trim().isEmpty()) {
+            return Result.error("审批 Token 为空");
+        }
+        LambdaQueryWrapper<com.maitong.visitor.entity.VisitorRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.maitong.visitor.entity.VisitorRecord::getApproveToken, approveToken.trim());
+        com.maitong.visitor.entity.VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
+        if (record == null) {
+            return Result.error("该审批链接无效或已被处理");
+        }
+
+        if (approved) {
+            record.setStatus("APPROVED");
+            record.setApprovedBy("DingTalkTokenAuth");
+            record.setApprovedAt(java.time.LocalDateTime.now());
+        } else {
+            record.setStatus("REJECTED");
+            record.setApprovedBy("DingTalkTokenAuth");
+            record.setApprovedAt(java.time.LocalDateTime.now());
+        }
+
+        visitorRecordMapper.updateById(record);
+        return Result.success("审批结果处理成功", approved);
+    }
 }
+

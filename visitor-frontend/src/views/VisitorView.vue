@@ -728,4 +728,16 @@ onUnmounted(() => {
 
 .text-green { color: #07c160; font-weight: bold; }
 .text-red { color: #ee0a24; font-weight: bold; }
+
+/* PC 适配：让只读下拉选择框鼠标展现 Pointer 并且点选极其顺畅 */
+.van-field {
+  cursor: pointer !important;
+}
+.van-field__control {
+  cursor: pointer !important;
+}
+.van-cell--clickable {
+  cursor: pointer !important;
+}
 </style>
+

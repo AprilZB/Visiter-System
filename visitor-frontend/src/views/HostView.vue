@@ -98,12 +98,48 @@
         </div>
       </van-tab>
     </van-tabs>
+
+    <!-- 专属加密 Token 钉钉免密一键审批弹窗 -->
+    <van-popup v-model:show="showTokenApprovalModal" round position="center" :style="{ width: '90%', padding: '20px' }">
+      <div style="text-align: center;">
+        <h3 style="margin: 0 0 8px 0; color: #323233;">【钉钉卡片快捷审批专区】</h3>
+        <p style="font-size: 13px; color: #969799; margin-bottom: 16px;">基于唯一加密凭证安全校验 · 无需再次登录</p>
+      </div>
+
+      <div v-if="tokenRecord" class="token-approve-card" style="background: #f7f8fa; padding: 16px; border-radius: 8px; font-size: 14px;">
+        <p style="margin: 6px 0;"><b>访客姓名：</b>{{ tokenRecord.visitorName }}</p>
+        <p style="margin: 6px 0;"><b>联系电话：</b>{{ tokenRecord.phone }}</p>
+        <p style="margin: 6px 0;"><b>身份证件：</b>{{ tokenRecord.idCardMasked }}</p>
+        <p style="margin: 6px 0;"><b>来访事由：</b>{{ tokenRecord.visitPurpose }}</p>
+        <p style="margin: 6px 0;"><b>受访部门：</b>{{ tokenRecord.hostDept }}</p>
+        <p style="margin: 6px 0;"><b>当前状态：</b>
+          <van-tag :type="tokenRecord.status === 'PENDING_APPROVAL' ? 'warning' : 'primary'">
+            {{ tokenRecord.status === 'PENDING_APPROVAL' ? '待审批' : tokenRecord.status }}
+          </van-tag>
+        </p>
+      </div>
+
+      <div v-if="tokenRecord && tokenRecord.status === 'PENDING_APPROVAL'" style="margin-top: 20px; display: flex; gap: 12px;">
+        <van-button block round type="danger" plain :loading="tokenApproving" @click="handleTokenApprove(false)">
+          拒绝到访
+        </van-button>
+        <van-button block round type="primary" :loading="tokenApproving" @click="handleTokenApprove(true)">
+          同意放行
+        </van-button>
+      </div>
+      <div v-else style="margin-top: 16px;">
+        <van-button block round type="default" @click="showTokenApprovalModal = false">关闭窗口</van-button>
+      </div>
+    </van-popup>
   </div>
+
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
+
 import axios from 'axios'
 
 
@@ -238,9 +274,57 @@ const getStatusText = (item) => {
   return '待审批'
 }
 
+const route = useRoute()
+const showTokenApprovalModal = ref(false)
+const tokenRecord = ref(null)
+const tokenApproving = ref(false)
+
+const checkApproveTokenUrl = async () => {
+  const token = (route && route.query && route.query.approveToken) ? route.query.approveToken : new URLSearchParams(window.location.search).get('approveToken')
+  if (token) {
+    try {
+      const res = await axios.get(`/api/public/host/apply-info?approveToken=${token}`)
+      if (res.data.code === 200) {
+        tokenRecord.value = res.data.data
+        showTokenApprovalModal.value = true
+      } else {
+        showFailToast(res.data.message || '凭证链接无效')
+      }
+    } catch (e) {
+      showFailToast('查询审批凭证失败')
+    }
+  }
+}
+
+const handleTokenApprove = async (approved) => {
+  if (!tokenRecord.value || !tokenRecord.value.approveToken) return
+  tokenApproving.value = true
+  try {
+    const res = await axios.post('/api/public/host/approve-by-token', {
+      approveToken: tokenRecord.value.approveToken,
+      approved: approved
+    })
+    if (res.data.code === 200) {
+      showSuccessToast(approved ? '已同意放行！系统已告知访客' : '已拒绝该笔到访申请')
+      tokenRecord.value.status = approved ? 'APPROVED' : 'REJECTED'
+      setTimeout(() => {
+        showTokenApprovalModal.value = false
+      }, 1500)
+    } else {
+      showFailToast(res.data.message || '处理失败')
+    }
+  } catch (e) {
+    showFailToast('操作发生网络错误')
+  } finally {
+    tokenApproving.value = false
+  }
+}
+
 onMounted(() => {
   autoLogin()
+  checkApproveTokenUrl()
 })
+
 </script>
 
 <style scoped>

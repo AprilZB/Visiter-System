@@ -68,6 +68,9 @@ public class VisitorServiceImpl implements VisitorService {
         record.setVisitTime(LocalDateTime.now());
         record.setNdaSigned(0);
 
+        String approveToken = java.util.UUID.randomUUID().toString().replace("-", "");
+        record.setApproveToken(approveToken);
+
         // 场景 A (员工主动邀约): 直接通过，等待访客签署保密协议
         // 场景 B (现场盲扫): 进入待审批状态
         if ("A".equalsIgnoreCase(record.getScenario())) {
@@ -84,13 +87,22 @@ public class VisitorServiceImpl implements VisitorService {
         try {
             String hostWorkNo = (host != null) ? host.getWorkNo() : "404256402";
             String hostName = (host != null) ? host.getName() : "张勃";
-            String msg = String.format("【脉通访客系统到访提醒】\n访客姓名：%s\n手机号：%s\n来访事由：%s\n受访人员：%s (%s)\n访客单号：%s\n请及时关注并办理通行授权。",
-                    record.getVisitorName(), record.getPhone(), record.getVisitPurpose(), hostName, record.getHostDept(), record.getVisitNo());
-            
+            String approveUrl = "http://10.11.100.154:8097/host?approveToken=" + approveToken;
+            String msg = String.format("【脉通访客到访申请审批】\n" +
+                    "访客姓名：%s\n" +
+                    "手机号码：%s\n" +
+                    "来访事由：%s\n" +
+                    "受访部门：%s\n" +
+                    "申请时间：%s\n\n" +
+                    "👉 点击下方专属加密链接一键免密审批：\n%s",
+                    record.getVisitorName(), record.getPhone(), record.getVisitPurpose(), record.getHostDept(),
+                    LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), approveUrl);
+
             dingTalkNotificationService.sendWorkNotificationByWorkNo(hostWorkNo, hostName, msg);
         } catch (Exception e) {
             // 通知推送异常不卡死主业务流程
         }
+
 
         return record;
     }
