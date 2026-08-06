@@ -1,9 +1,74 @@
 <template>
   <div class="host-container">
-    <van-nav-bar title="浙江脉通智造 - 内部员工访客预预约" />
+    <!-- 1. 专属凭证审批模式 Header -->
+    <van-nav-bar
+      :title="hasApproveToken ? '浙江脉通智造 - 访客到访快捷审批' : '浙江脉通智造 - 内部员工访客预预约'"
+    />
 
-    <!-- 场景 A 批量预约面板 (去登录，面向员工快捷发送邮件) -->
-    <div class="form-box" style="padding: 12px 8px;">
+    <!-- ==================== 模式 A: Token 专属审批模式 ==================== -->
+    <div v-if="hasApproveToken" class="approve-mode-container" style="padding: 16px;">
+      <!-- 加载中 -->
+      <div v-if="tokenLoading" class="loading-box" style="text-align: center; padding: 40px 0;">
+        <van-loading type="spinner" color="#1989fa" size="36px">正在调取加密审批单信息...</van-loading>
+      </div>
+
+      <!-- 加载失败/凭证无效 -->
+      <div v-else-if="!tokenRecord" class="empty-box" style="background: #fff; padding: 30px; border-radius: 12px; text-align: center;">
+        <van-empty image="error" description="该审批凭证无效或已被撤销" />
+        <p style="font-size: 13px; color: #969799; margin-top: 8px;">请确认链接是否完整或联系系统管理员。</p>
+      </div>
+
+      <!-- 单据已处理完成（已同意或已拒绝） -->
+      <div v-else-if="tokenRecord.status !== 'PENDING_APPROVAL'" class="result-box" style="background: #fff; padding: 24px; border-radius: 12px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <van-icon name="checked" size="64px" color="#07c160" v-if="tokenRecord.status === 'APPROVED' || tokenRecord.status === 'NDA_SIGNED' || tokenRecord.status === 'ENTERED'" />
+        <van-icon name="clear" size="64px" color="#ee0a24" v-else />
+
+        <h3 style="margin: 16px 0 8px 0; color: #323233;">
+          {{ getStatusTitle(tokenRecord.status) }}
+        </h3>
+        <p style="font-size: 14px; color: #646566; margin-bottom: 20px;">
+          {{ getStatusSubText(tokenRecord) }}
+        </p>
+
+        <div style="background: #f7f8fa; padding: 12px; border-radius: 8px; font-size: 13px; text-align: left; color: #646566;">
+          <p style="margin: 4px 0;"><b>访客姓名：</b>{{ tokenRecord.visitorName }}</p>
+          <p style="margin: 4px 0;"><b>联系电话：</b>{{ tokenRecord.phone }}</p>
+          <p style="margin: 4px 0;"><b>拟到访时间：</b>{{ tokenRecord.visitDate }} {{ tokenRecord.visitStartTime }} ~ {{ tokenRecord.visitEndTime }}</p>
+        </div>
+      </div>
+
+      <!-- 待审批状态 (正处于 PENDING_APPROVAL) -->
+      <div v-else class="approve-card-box" style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <div style="border-bottom: 1px solid #ebedf0; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 18px; color: #323233;">【待您审批的访客单】</h3>
+          <van-tag type="warning" size="medium">待审批</van-tag>
+        </div>
+
+        <div class="info-list" style="font-size: 15px; line-height: 1.8; color: #323233;">
+          <p style="margin: 6px 0;"><b>访客姓名：</b><span style="font-weight: bold; color: #1989fa;">{{ tokenRecord.visitorName }}</span></p>
+          <p style="margin: 6px 0;"><b>联系电话：</b>{{ tokenRecord.phone }}</p>
+          <p style="margin: 6px 0;"><b>身份证件：</b>{{ tokenRecord.idCardMasked }}</p>
+          <p style="margin: 6px 0;"><b>受访部门：</b>{{ tokenRecord.hostDept }} (受访人: {{ tokenRecord.hostName }})</p>
+          <p style="margin: 6px 0;"><b>来访事由：</b>{{ tokenRecord.visitPurpose }}</p>
+          <div style="background: #e8f4ff; padding: 10px 12px; border-radius: 6px; margin: 12px 0; color: #1989fa; font-weight: bold;">
+            <b>拟到访时间段：</b>{{ tokenRecord.visitDate }} {{ tokenRecord.visitStartTime }} ~ {{ tokenRecord.visitEndTime }}
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; display: flex; gap: 12px;">
+          <van-button block round type="danger" plain size="large" :loading="tokenApproving" @click="handleTokenApprove(false)">
+            拒绝到访
+          </van-button>
+          <van-button block round type="primary" size="large" :loading="tokenApproving" @click="handleTokenApprove(true)">
+            同意放行
+          </van-button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== 模式 B: 无 Token 批量预约模式 ==================== -->
+    <div v-else class="form-box" style="padding: 12px 8px;">
       <van-notice-bar left-icon="info-o" text="录入多名来访人员后提交，系统将自动生成唯一 Token 邀请函发送至各访客邮箱。" />
 
       <van-form @submit="submitBatchInvite" style="margin-top: 12px;">
@@ -78,48 +143,11 @@
           </van-button>
         </div>
       </van-form>
-    </div>
-
-
-    <!-- 专属加密 Token 钉钉免密一键审批弹窗 -->
-    <van-popup v-model:show="showTokenApprovalModal" round position="center" :style="{ width: '90%', padding: '20px' }">
-      <div style="text-align: center;">
-        <h3 style="margin: 0 0 8px 0; color: #323233;">【钉钉卡片快捷审批专区】</h3>
-        <p style="font-size: 13px; color: #969799; margin-bottom: 16px;">基于唯一加密凭证安全校验 · 无需再次登录</p>
-      </div>
-
-      <div v-if="tokenRecord" class="token-approve-card" style="background: #f7f8fa; padding: 16px; border-radius: 8px; font-size: 14px;">
-        <p style="margin: 6px 0;"><b>访客姓名：</b>{{ tokenRecord.visitorName }}</p>
-        <p style="margin: 6px 0;"><b>联系电话：</b>{{ tokenRecord.phone }}</p>
-        <p style="margin: 6px 0;"><b>身份证件：</b>{{ tokenRecord.idCardMasked }}</p>
-        <p style="margin: 6px 0;"><b>来访事由：</b>{{ tokenRecord.visitPurpose }}</p>
-        <p style="margin: 6px 0;"><b>受访部门：</b>{{ tokenRecord.hostDept }}</p>
-        <p style="margin: 6px 0; color: #1989fa;"><b>拟到访时间段：</b>{{ tokenRecord.visitDate }} {{ tokenRecord.visitStartTime }} ~ {{ tokenRecord.visitEndTime }}</p>
-        <p style="margin: 6px 0;"><b>当前状态：</b>
-
-          <van-tag :type="tokenRecord.status === 'PENDING_APPROVAL' ? 'warning' : 'primary'">
-            {{ tokenRecord.status === 'PENDING_APPROVAL' ? '待审批' : tokenRecord.status }}
-          </van-tag>
-        </p>
-      </div>
-
-      <div v-if="tokenRecord && tokenRecord.status === 'PENDING_APPROVAL'" style="margin-top: 20px; display: flex; gap: 12px;">
-        <van-button block round type="danger" plain :loading="tokenApproving" @click="handleTokenApprove(false)">
-          拒绝到访
-        </van-button>
-        <van-button block round type="primary" :loading="tokenApproving" @click="handleTokenApprove(true)">
-          同意放行
-        </van-button>
-      </div>
-      <div v-else style="margin-top: 16px;">
-        <van-button block round type="default" @click="showTokenApprovalModal = false">关闭窗口</van-button>
-      </div>
-    </van-popup>
   </div>
-
 </template>
 
 <script setup>
+
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
@@ -261,58 +289,42 @@ const submitInvite = async () => {
   }
 }
 
-const formatTime = (t) => {
-  if (!t) return '-'
-  return t.replace('T', ' ').substring(0, 16)
-}
-
-const getStatusTagType = (s) => {
-  if (s === 'APPROVED' || s === 'NDA_SIGNED') return 'primary'
-  if (s === 'ENTERED') return 'success'
-  if (s === 'REJECTED') return 'danger'
-  return 'warning'
-}
-
-const getStatusText = (item) => {
-  if (item.status === 'ENTERED') return '已放行入园'
-  if (item.status === 'REJECTED') return '已驳回'
-  if (item.ndaSigned === 1) return '协议已签/待入园'
-  if (item.status === 'APPROVED') return '审批通过/待签协议'
-  return '待审批'
-}
-
 const route = useRoute()
-const showTokenApprovalModal = ref(false)
+const hasApproveToken = ref(false)
+const tokenLoading = ref(false)
 const tokenRecord = ref(null)
 const tokenApproving = ref(false)
+
+const getStatusTitle = (s) => {
+  if (s === 'APPROVED' || s === 'NDA_SIGNED' || s === 'ENTERED') return '该笔到访申请已同意放行'
+  if (s === 'REJECTED') return '该笔到访申请已被驳回'
+  return '单据已处理'
+}
+
+const getStatusSubText = (r) => {
+  if (r.status === 'APPROVED' || r.status === 'NDA_SIGNED') return '系统已通知访客完成保密协议签署与领码。'
+  if (r.status === 'ENTERED') return '访客已通过门岗核销入园。'
+  if (r.status === 'REJECTED') return '您或主管已拒绝该笔到访。'
+  return '处理完成'
+}
 
 const checkApproveTokenUrl = async () => {
   let token = (route && route.query && route.query.approveToken) ? route.query.approveToken : null
   if (!token) {
     token = new URLSearchParams(window.location.search).get('approveToken')
   }
-  if (!token && window.location.href.includes('approveToken=')) {
-    const parts = window.location.href.split('approveToken=')
-    if (parts.length > 1) {
-      token = parts[1].split('&')[0].split('#')[0]
-    }
-  }
 
   if (token) {
+    hasApproveToken.value = true
+    tokenLoading.value = true
     try {
-      showToast({ type: 'loading', message: '正在验证极速审批凭证...', duration: 0 })
       const res = await axios.get(`/api/public/host/apply-info?approveToken=${encodeURIComponent(token)}`)
-      showToast().clear()
       if (res.data.code === 200 && res.data.data) {
         tokenRecord.value = res.data.data
-        showTokenApprovalModal.value = true
-        showSuccessToast('加密凭证校验通过！')
       } else {
-        showFailToast(res.data.message || '审批链接无效或已被处理')
+        tokenRecord.value = null
       }
     } catch (e) {
-      showToast().clear()
-      showFailToast('网络连接失败，请检查服务地址')
     }
   }
 }
