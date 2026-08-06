@@ -55,7 +55,8 @@ public class NdaGuardServiceImpl implements NdaGuardService {
                         "<p><b>二、法律效力与存证说明</b></p>" +
                         "<p>4. 本电子签署协议具有法律效力，签署时的设备 IP、手写签名及时间戳将实时通过 SHA-256 数字哈希链归档存证。</p>");
                 v2.setIsActive(1);
-                v2.setCreatedBy("Admin(张勃)");
+                v2.setCreatedBy("Admin");
+
                 v2.setCreatedAt(LocalDateTime.now());
                 sysNdaTemplateMapper.insert(v2);
             }

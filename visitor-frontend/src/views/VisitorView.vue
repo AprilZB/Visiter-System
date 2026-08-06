@@ -154,13 +154,14 @@
         </div>
 
         <div v-if="ndaTemplate.pdfUrl" class="nda-pdf-view" style="padding: 10px 12px;">
-          <iframe :src="ndaTemplate.pdfUrl" style="width: 100%; height: 260px; border: 1px dashed #c8c9cc; border-radius: 6px; background: #fff;"></iframe>
+          <iframe :src="getFullPdfUrl(ndaTemplate.pdfUrl)" style="width: 100%; height: 260px; border: 1px dashed #c8c9cc; border-radius: 6px; background: #fff;"></iframe>
           <div style="text-align: right; margin-top: 6px;">
-            <a :href="ndaTemplate.pdfUrl" target="_blank" style="font-size: 13px; color: #1989fa; text-decoration: underline;">
+            <a :href="getFullPdfUrl(ndaTemplate.pdfUrl)" target="_blank" style="font-size: 13px; color: #1989fa; text-decoration: underline;">
               📄 查看/下载官方盖章版 PDF 协议原件
             </a>
           </div>
         </div>
+
         <div v-else class="nda-modal-body" v-html="ndaTemplate.content"></div>
 
 
@@ -210,7 +211,16 @@ import { showToast, showSuccessToast, showFailToast } from 'vant'
 import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
 
+const getFullPdfUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('/')) {
+    return 'http://localhost:8096' + url
+  }
+  return url
+}
+
 const form = reactive({
+
   scenario: 'B',
   visitorName: '',
   idCard: '',

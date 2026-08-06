@@ -138,11 +138,12 @@
                 <el-table-column label="PDF保密协议文档" min-width="190">
                   <template #default="scope">
                     <div v-if="scope.row.pdfUrl" style="display: flex; align-items: center; gap: 8px;">
-                      <el-link type="primary" icon="Document" :href="scope.row.pdfUrl" target="_blank">
+                      <el-link type="primary" icon="Document" :href="getFullPdfUrl(scope.row.pdfUrl)" target="_blank">
                         PDF 协议文件
                       </el-link>
                       <el-button size="small" type="info" text icon="View" @click="previewPdfModal(scope.row.pdfUrl)">预览</el-button>
                     </div>
+
                     <span v-else style="color: #909399; font-size: 13px;">无 PDF (纯文本版)</span>
                   </template>
                 </el-table-column>
@@ -750,7 +751,8 @@ const newNdaForm = reactive({
   title: '浙江脉通智造科技有限公司外来人员保密协议书 (PDF加印官方重置版)',
   content: '已随版本号附带官方盖章 PDF 保密协议附件。',
   pdfUrl: '',
-  createdBy: 'Admin(张勃)'
+  createdBy: 'Admin'
+
 })
 
 const uploadHeaders = computed(() => {
@@ -759,14 +761,20 @@ const uploadHeaders = computed(() => {
   }
 })
 
-const pdfPreviewVisible = ref(false)
-const currentPreviewPdfUrl = ref('')
+const getFullPdfUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('/')) {
+    return 'http://localhost:8096' + url
+  }
+  return url
+}
 
 const previewPdfModal = (url) => {
   if (!url) return
-  currentPreviewPdfUrl.value = url
+  currentPreviewPdfUrl.value = getFullPdfUrl(url)
   pdfPreviewVisible.value = true
 }
+
 
 const handlePdfUploadSuccess = (response) => {
   if (response && response.code === 200) {
