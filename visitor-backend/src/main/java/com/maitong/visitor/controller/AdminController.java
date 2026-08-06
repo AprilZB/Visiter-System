@@ -86,14 +86,65 @@ public class AdminController {
 
 
 
+    @Autowired
+    private com.maitong.visitor.mapper.VisitorNdaRecordMapper visitorNdaRecordMapper;
+
+    @Autowired
+    private com.maitong.visitor.mapper.SysNdaTemplateMapper sysNdaTemplateMapper;
+
     /**
-     * 2. 获取所有访客登记记录
+     * 2. 获取所有访客登记记录 (包含明文解密与 SHA-256 数字证据链追溯)
      */
+    @GetMapping("/visitors")
+    public Result<List<Map<String, Object>>> getAuditVisitors() {
+        List<VisitorRecord> records = visitorService.getAllRecords();
+        List<Map<String, Object>> resultList = new java.util.ArrayList<>();
+
+        for (VisitorRecord r : records) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", r.getId());
+            map.put("visitNo", r.getVisitNo());
+            map.put("visitorName", r.getVisitorName());
+            
+            // 明文解密身份证用于管理端合规追溯
+            String rawIdCard = com.maitong.visitor.util.CryptoUtils.decryptAES(r.getIdCardEncrypted());
+            map.put("idCardDecrypted", (rawIdCard != null && !rawIdCard.isEmpty()) ? rawIdCard : r.getIdCardMasked());
+            map.put("phone", r.getPhone());
+            map.put("hostName", r.getHostName());
+            map.put("visitPurpose", r.getVisitPurpose());
+            map.put("status", r.getStatus());
+            map.put("ndaSigned", r.getNdaSigned() != null && r.getNdaSigned() == 1);
+            map.put("createdAt", r.getCreatedAt());
+
+            // 联查保密协议 (NDA) 签署手写签名与 SHA-256 存证哈希链
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.maitong.visitor.entity.VisitorNdaRecord> ndaWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ndaWrapper.eq(com.maitong.visitor.entity.VisitorNdaRecord::getVisitorRecordId, r.getId());
+            com.maitong.visitor.entity.VisitorNdaRecord ndaRecord = visitorNdaRecordMapper.selectOne(ndaWrapper);
+
+            if (ndaRecord != null) {
+                map.put("signatureBase64", ndaRecord.getSignatureBase64());
+                map.put("clientIp", ndaRecord.getClientIp());
+                map.put("evidenceHash", ndaRecord.getHashChain());
+                map.put("ndaVersion", ndaRecord.getNdaVersion() != null ? ndaRecord.getNdaVersion() : "V1.1.0");
+            } else {
+                map.put("signatureBase64", null);
+                map.put("clientIp", "-");
+                map.put("evidenceHash", "-");
+                map.put("ndaVersion", "-");
+            }
+
+
+            resultList.add(map);
+        }
+
+        return Result.success(resultList);
+    }
 
     @GetMapping("/records")
     public Result<List<VisitorRecord>> getRecords() {
         return Result.success(visitorService.getAllRecords());
     }
+
 
     /**
      * 3. 审批访客
