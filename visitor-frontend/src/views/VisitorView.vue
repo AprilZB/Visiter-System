@@ -20,6 +20,18 @@
       </div>
     </div>
 
+    <!-- 快捷查询入口：员工已预约/已有申请的访客凭手机号查找 -->
+    <div style="margin: 12px 16px; background: #e8f4ff; border: 1px solid #abdcff; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-weight: bold; color: #1989fa; font-size: 14px;">已有预约或申请记录？</div>
+        <div style="font-size: 12px; color: #646566; margin-top: 2px;">凭手机号查找单据，签保密协议领通行码</div>
+      </div>
+      <van-button size="small" type="primary" round icon="search" @click="showFindTokenModal = true">
+        手机号查询
+      </van-button>
+    </div>
+
+
     <!-- 步骤 1: 填报申请 / OCR 识别 -->
     <div v-if="!currentVisitNo" class="form-card">
       <div class="card-title">① 身份证拍摄自动识别</div>
@@ -259,7 +271,52 @@ const getFullPdfUrl = (url) => {
 }
 
 const todayStr = new Date().toISOString().split('T')[0]
+const onFindTokenConfirm = async (action) => {
+  if (action === 'cancel') {
+    searchPhone.value = ''
+    return true
+  }
+  if (!searchPhone.value || !searchPhone.value.trim()) {
+    showToast('请输入申请时填写的手机号码！')
+    return false
+  }
+  try {
+    const res = await axios.get(`/api/public/visitor/by-phone?phone=${searchPhone.value.trim()}`)
+    if (res.data.code === 200 && res.data.data) {
+      const record = res.data.data
+      showSuccessToast('已成功检索到您的到访单据！')
+      currentVisitNo.value = record.visitNo
+      recordDetail.value = record
+      
+      form.visitorName = record.visitorName || ''
+      form.phone = record.phone || ''
+      form.visitDate = record.visitDate || ''
+      form.visitStartTime = record.visitStartTime || ''
+      form.visitEndTime = record.visitEndTime || ''
+      
+      isNdaSigned.value = (record.ndaSigned === 1)
+      if (isNdaSigned.value) {
+        passToken.value = record.passToken
+      } else {
+        // 自动引导访客拍照/上传身份证并签保密协议
+        showNdaModal.value = true
+      }
+
+      searchPhone.value = ''
+      showFindTokenModal.value = false
+      return true
+    } else {
+      showFailToast(res.data.message || '未查询到记录，请直接在下方申请')
+      return false
+    }
+  } catch (e) {
+    showFailToast('查询发生网络错误')
+    return false
+  }
+}
+
 const timeRangeDisplay = ref('09:00 ~ 18:00 (全天段)')
+
 
 const form = reactive({
   scenario: 'B',
@@ -311,35 +368,6 @@ const onTimeRangeConfirm = (val) => {
 }
 
 
-const onFindTokenConfirm = async (action) => {
-  if (action === 'cancel') {
-    searchPhone.value = ''
-    return true
-  }
-  if (!searchPhone.value || !searchPhone.value.trim()) {
-    showToast('请输入申请时填写的手机号码！')
-    return false
-  }
-  try {
-    const res = await axios.get(`/api/visitor/latest-pass-token?phone=${searchPhone.value.trim()}`)
-    if (res.data.code === 200 && res.data.data) {
-      showSuccessToast('已成功恢复您的通行凭证！')
-      currentVisitNo.value = res.data.data.visitNo
-      passToken.value = res.data.data.passToken
-      isNdaSigned.value = true
-      recordDetail.value = res.data.data.record || { status: 'APPROVED' }
-      searchPhone.value = ''
-      showFindTokenModal.value = false
-      return true
-    } else {
-      showFailToast(res.data.message || '未查询到有效通行凭证')
-      return false
-    }
-  } catch (e) {
-    showFailToast('查询服务异常')
-    return false
-  }
-}
 
 
 const deptList = ref([])

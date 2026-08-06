@@ -138,6 +138,28 @@ public class PublicDataController {
         }
         return Result.success(record);
     }
+
+    /**
+
+     * 7. 根据手机号查询访客最新的预约/申请单信息 (支持正门扫码凭手机号查找补全身份证与签署 NDA)
+     */
+    @GetMapping("/visitor/by-phone")
+    public Result<com.maitong.visitor.entity.VisitorRecord> getVisitorByPhone(@RequestParam("phone") String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return Result.error("请输入有效的手机号码");
+        }
+        LambdaQueryWrapper<com.maitong.visitor.entity.VisitorRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.maitong.visitor.entity.VisitorRecord::getPhone, phone.trim())
+               .orderByDesc(com.maitong.visitor.entity.VisitorRecord::getId)
+               .last("LIMIT 1");
+
+        com.maitong.visitor.entity.VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
+        if (record == null) {
+            return Result.error("未查询到该手机号对应的到访预约单，请在下方直接提交现场盲到申请。");
+        }
+        return Result.success(record);
+    }
 }
+
 
 
