@@ -143,6 +143,7 @@
           </van-button>
         </div>
       </van-form>
+    </div>
   </div>
 </template>
 
