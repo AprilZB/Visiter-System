@@ -95,7 +95,8 @@ public class HostController {
             createdList.add(record);
 
             // 模拟/派发 HTML 格式到访邀请函邮件
-            String inviteUrl = "http://10.11.100.154:8097/visitor?visitorToken=" + visitorToken;
+            String inviteUrl = "http://10.11.100.151:8097/visitor?visitorToken=" + visitorToken;
+
             System.out.println("=================================================================");
             System.out.println("【到访邀请函邮件派发】 目标邮箱: " + email);
             System.out.println("尊敬的 " + name + " 您好，" + record.getHostName() + " 邀请您于 " + visitDate + " " + visitStartTime + "~" + visitEndTime + " 到访 " + company);

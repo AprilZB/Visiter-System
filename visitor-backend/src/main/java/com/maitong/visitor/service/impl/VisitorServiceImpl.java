@@ -90,7 +90,8 @@ public class VisitorServiceImpl implements VisitorService {
         try {
             String hostWorkNo = (host != null) ? host.getWorkNo() : "404256402";
             String hostName = (host != null) ? host.getName() : "张勃";
-            String approveUrl = "http://10.11.100.154:8097/host?approveToken=" + approveToken;
+            String approveUrl = "http://10.11.100.151:8097/host?approveToken=" + approveToken;
+
             String timeRangeStr = String.format("%s %s ~ %s", record.getVisitDate(), record.getVisitStartTime(), record.getVisitEndTime());
             String msg = String.format("【脉通访客到访申请审批】\n" +
                     "访客姓名：%s\n" +

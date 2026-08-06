@@ -62,7 +62,8 @@ public class ApprovalTimeoutTask {
                     managerName = hostUser.getManagerName().trim();
                 }
 
-                String approveUrl = "http://10.11.100.154:8097/host?approveToken=" + record.getApproveToken();
+                String approveUrl = "http://10.11.100.151:8097/host?approveToken=" + record.getApproveToken();
+
                 String timeRangeStr = String.format("%s %s ~ %s", 
                         record.getVisitDate() != null ? record.getVisitDate() : "", 
                         record.getVisitStartTime() != null ? record.getVisitStartTime() : "", 
