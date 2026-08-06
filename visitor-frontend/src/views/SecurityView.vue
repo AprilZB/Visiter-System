@@ -21,15 +21,44 @@
     </van-popup>
 
     <!-- 扫码 / 凭证输入框 -->
-
     <div class="scan-card">
       <div class="scan-title">门岗通行二维码核验</div>
-      <van-field v-model="passTokenInput" center clearable placeholder="输入或摄像头扫描动态通行 Token" label="通行 Token">
+      
+      <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+        <van-button block round type="primary" icon="scan" @click="startCameraScanner">
+          📷 启动手机摄像头扫码
+        </van-button>
+      </div>
+
+      <van-field
+        v-model="passTokenInput"
+        center
+        clearable
+        placeholder="对准扫码枪扫描 / 摄像头扫码 / 粘贴凭证"
+        label="通行凭证"
+        @keyup.enter="handleScan"
+      >
         <template #button>
-          <van-button size="small" type="primary" :loading="scanning" @click="handleScan">扫码/核验</van-button>
+          <van-button size="small" type="primary" :loading="scanning" @click="handleScan">核验放行</van-button>
         </template>
       </van-field>
+      <div style="font-size: 11px; color: #969799; margin-top: 6px; text-align: right;">
+        * 支持红外扫码枪对准扫码或点击上方启动手机镜头扫码
+      </div>
     </div>
+
+    <!-- 手机摄像头扫码弹窗 -->
+    <van-popup v-model:show="showCameraModal" round position="center" :style="{ width: '90%', padding: '16px', textAlign: 'center' }" @closed="stopCameraScanner">
+      <h3 style="margin: 0 0 8px 0; color: #323233;">对准访客手机二维码进行扫描</h3>
+      <p style="font-size: 12px; color: #969799; margin-bottom: 12px;">请确保光线充足并将二维码放入框内</p>
+      
+      <div id="qr-reader" style="width: 100%; border-radius: 8px; overflow: hidden; background: #000;"></div>
+
+      <div style="margin-top: 16px;">
+        <van-button block round type="default" @click="showCameraModal = false">关闭摄像头</van-button>
+      </div>
+    </van-popup>
+
 
     <!-- 核验结果展示区 (脱敏合规) -->
     <div v-if="scanResult" class="result-card" :class="scanResult.canPass ? 'border-success' : 'border-danger'">
@@ -82,12 +111,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
 import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
+import { Html5Qrcode } from 'html5-qrcode'
 
 const showGateQrModal = ref(false)
+const showCameraModal = ref(false)
 const visitorPageUrl = ref(window.location.origin + '/visitor')
 
 const passTokenInput = ref('')
@@ -95,6 +126,46 @@ const passTokenInput = ref('')
 const scanning = ref(false)
 const confirmLoading = ref(false)
 const scanResult = ref(null)
+
+let html5QrcodeScanner = null
+
+const startCameraScanner = async () => {
+  showCameraModal.value = true
+  await nextTick()
+  try {
+    if (!html5QrcodeScanner) {
+      html5QrcodeScanner = new Html5Qrcode("qr-reader")
+    }
+    
+    await html5QrcodeScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        let token = decodedText
+        if (decodedText && decodedText.includes('token=')) {
+          const match = decodedText.match(/token=([^&]+)/)
+          if (match && match[1]) token = match[1]
+        }
+        passTokenInput.value = token
+        showSuccessToast('二维码读取成功！')
+        stopCameraScanner()
+        showCameraModal.value = false
+        handleScan()
+      },
+      () => {}
+    )
+  } catch (e) {
+    showFailToast('启动摄像头失败，请允许浏览器使用摄像头！')
+    showCameraModal.value = false
+  }
+}
+
+const stopCameraScanner = () => {
+  if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+    html5QrcodeScanner.stop().catch(err => console.error(err))
+  }
+}
+
 
 const handleScan = async () => {
   if (!passTokenInput.value || !passTokenInput.value.trim()) {
