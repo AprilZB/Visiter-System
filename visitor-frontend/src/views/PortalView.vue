@@ -46,52 +46,9 @@
         <el-button type="primary" :loading="searching" @click="searchByPhone">提交查询</el-button>
       </template>
     </el-dialog>
-
-
-    <!-- 四大系统模块测试入口卡片 -->
-    <div class="portal-grid">
-      <!-- 卡片 1: 外部访客端 -->
-      <div class="portal-card blue-card" @click="navTo('/visitor')">
-        <div class="card-icon"><van-icon name="user-o" size="36" /></div>
-        <div class="card-content">
-          <h4>1. 外部访客申请端 (H5)</h4>
-          <p>身份证 OCR 上传识别、先选部门后选人（自动过滤屏蔽部门）、来访事由下拉选择、保密协议强制弹窗签署存证、限时动态通行码。</p>
-          <div class="path-badge">/visitor</div>
-        </div>
-      </div>
-
-      <!-- 卡片 2: 内部员工端 -->
-      <div class="portal-card green-card" @click="navTo('/host')">
-        <div class="card-icon"><van-icon name="apps-o" size="36" /></div>
-        <div class="card-content">
-          <h4>2. 内部员工微应用 (钉钉端)</h4>
-          <p>钉钉环境自动免登、主动生成场景 A 预约邀约链接、现场盲来申请一键卡片【同意/拒绝】审批、查看访客签署状态。</p>
-          <div class="path-badge">/host</div>
-        </div>
-      </div>
-
-      <!-- 卡片 3: 物业保安端 -->
-      <div class="portal-card orange-card" @click="navTo('/security')">
-        <div class="card-icon"><van-icon name="shield-o" size="36" /></div>
-        <div class="card-content">
-          <h4>3. 门岗物业保安端 (H5)</h4>
-          <p>专属安全 URL 免登、扫描动态通行码、界面强脱敏展示中间 4 位掩码身份证 (如 3301021234****1234)、人证比对一键放行销号。</p>
-          <div class="path-badge">/security</div>
-        </div>
-      </div>
-
-      <!-- 卡片 4: PC 系统管理后台 -->
-      <div class="portal-card purple-card" @click="navTo('/admin')">
-        <div class="card-icon"><van-icon name="setting-o" size="36" /></div>
-        <div class="card-content">
-          <h4>4. PC 系统管理后台 (Dashboard)</h4>
-          <p>动态修改 OCR 服务器地址、部门屏蔽防骚扰设置、来访事由字典维护、保密协议 (NDA) 版本控制发布、全量访客 SHA-256 审计链追溯。</p>
-          <div class="path-badge">/admin (admin / Accupath@0723)</div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
+
 
 <script setup>
 import { ref } from 'vue'
