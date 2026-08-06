@@ -32,5 +32,15 @@ public class VisitorApplyDTO {
 
     public String getVisitTime() { return visitTime; }
     public void setVisitTime(String visitTime) { this.visitTime = visitTime; }
+
+    public String getVisitDate() { return visitDate; }
+    public void setVisitDate(String visitDate) { this.visitDate = visitDate; }
+
+    public String getVisitStartTime() { return visitStartTime; }
+    public void setVisitStartTime(String visitStartTime) { this.visitStartTime = visitStartTime; }
+
+    public String getVisitEndTime() { return visitEndTime; }
+    public void setVisitEndTime(String visitEndTime) { this.visitEndTime = visitEndTime; }
+
 }
 

@@ -66,6 +66,9 @@ public class VisitorServiceImpl implements VisitorService {
 
         record.setVisitPurpose(dto.getVisitPurpose() != null ? dto.getVisitPurpose() : "业务交流");
         record.setVisitTime(LocalDateTime.now());
+        record.setVisitDate(dto.getVisitDate() != null ? dto.getVisitDate() : java.time.LocalDate.now().toString());
+        record.setVisitStartTime(dto.getVisitStartTime() != null ? dto.getVisitStartTime() : "09:00");
+        record.setVisitEndTime(dto.getVisitEndTime() != null ? dto.getVisitEndTime() : "18:00");
         record.setNdaSigned(0);
 
         String approveToken = java.util.UUID.randomUUID().toString().replace("-", "");
@@ -88,20 +91,21 @@ public class VisitorServiceImpl implements VisitorService {
             String hostWorkNo = (host != null) ? host.getWorkNo() : "404256402";
             String hostName = (host != null) ? host.getName() : "张勃";
             String approveUrl = "http://10.11.100.154:8097/host?approveToken=" + approveToken;
+            String timeRangeStr = String.format("%s %s ~ %s", record.getVisitDate(), record.getVisitStartTime(), record.getVisitEndTime());
             String msg = String.format("【脉通访客到访申请审批】\n" +
                     "访客姓名：%s\n" +
                     "手机号码：%s\n" +
+                    "拟到访时间段：%s\n" +
                     "来访事由：%s\n" +
-                    "受访部门：%s\n" +
-                    "申请时间：%s\n\n" +
+                    "受访部门：%s\n\n" +
                     "👉 点击下方专属加密链接一键免密审批：\n%s",
-                    record.getVisitorName(), record.getPhone(), record.getVisitPurpose(), record.getHostDept(),
-                    LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), approveUrl);
+                    record.getVisitorName(), record.getPhone(), timeRangeStr, record.getVisitPurpose(), record.getHostDept(), approveUrl);
 
             dingTalkNotificationService.sendWorkNotificationByWorkNo(hostWorkNo, hostName, msg);
         } catch (Exception e) {
             // 通知推送异常不卡死主业务流程
         }
+
 
 
         return record;

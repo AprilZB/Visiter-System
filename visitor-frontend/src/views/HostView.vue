@@ -112,7 +112,9 @@
         <p style="margin: 6px 0;"><b>身份证件：</b>{{ tokenRecord.idCardMasked }}</p>
         <p style="margin: 6px 0;"><b>来访事由：</b>{{ tokenRecord.visitPurpose }}</p>
         <p style="margin: 6px 0;"><b>受访部门：</b>{{ tokenRecord.hostDept }}</p>
+        <p style="margin: 6px 0; color: #1989fa;"><b>拟到访时间段：</b>{{ tokenRecord.visitDate }} {{ tokenRecord.visitStartTime }} ~ {{ tokenRecord.visitEndTime }}</p>
         <p style="margin: 6px 0;"><b>当前状态：</b>
+
           <van-tag :type="tokenRecord.status === 'PENDING_APPROVAL' ? 'warning' : 'primary'">
             {{ tokenRecord.status === 'PENDING_APPROVAL' ? '待审批' : tokenRecord.status }}
           </van-tag>

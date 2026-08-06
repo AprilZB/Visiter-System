@@ -38,7 +38,17 @@ public class AphrSyncRunner implements ApplicationRunner {
                 try {
                     conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN approve_token VARCHAR(100)");
                 } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_date VARCHAR(20)");
+                } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_start_time VARCHAR(20)");
+                } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_end_time VARCHAR(20)");
+                } catch (Exception ignored) {}
             }
+
 
         } catch (Exception ignored) {}
 

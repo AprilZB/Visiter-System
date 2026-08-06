@@ -23,7 +23,11 @@ public class VisitorRecord {
     private String hostDept;
     private String visitPurpose;
     private LocalDateTime visitTime;
-    private String status; // PENDING_APPROVAL, APPROVED, NDA_SIGNED, ENTERED, REJECTED, EXPIRED
+    private String visitDate;
+    private String visitStartTime;
+    private String visitEndTime;
+    private String status;
+ // PENDING_APPROVAL, APPROVED, NDA_SIGNED, ENTERED, REJECTED, EXPIRED
     private Integer ndaSigned; // 0:未签, 1:已签
     private LocalDateTime ndaSignedAt;
     private String passToken;
@@ -96,7 +100,17 @@ public class VisitorRecord {
     public LocalDateTime getVerifiedAt() { return verifiedAt; }
     public void setVerifiedAt(LocalDateTime verifiedAt) { this.verifiedAt = verifiedAt; }
 
+    public String getVisitDate() { return visitDate; }
+    public void setVisitDate(String visitDate) { this.visitDate = visitDate; }
+
+    public String getVisitStartTime() { return visitStartTime; }
+    public void setVisitStartTime(String visitStartTime) { this.visitStartTime = visitStartTime; }
+
+    public String getVisitEndTime() { return visitEndTime; }
+    public void setVisitEndTime(String visitEndTime) { this.visitEndTime = visitEndTime; }
+
     public String getApproveToken() { return approveToken; }
+
     public void setApproveToken(String approveToken) { this.approveToken = approveToken; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

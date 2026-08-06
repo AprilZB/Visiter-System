@@ -75,6 +75,39 @@
             />
           </van-popup>
 
+          <!-- 到访日期与时间段选择 -->
+          <van-field
+            v-model="form.visitDate"
+            is-link
+            readonly
+            name="visitDate"
+            label="到访日期"
+            placeholder="请选择拟到访日期"
+            required
+            :rules="[{ required: true }]"
+            @click="showDatePicker = true"
+          />
+          <van-calendar v-model:show="showDatePicker" @confirm="onDateConfirm" />
+
+          <van-field
+            v-model="timeRangeDisplay"
+            is-link
+            readonly
+            name="timeRange"
+            label="到访时间段"
+            placeholder="请选择具体的到访时间段"
+            required
+            :rules="[{ required: true }]"
+            @click="showTimePicker = true"
+          />
+          <van-popup v-model:show="showTimePicker" position="bottom">
+            <van-picker
+              :columns="timeRangeColumns"
+              @confirm="onTimeRangeConfirm"
+              @cancel="showTimePicker = false"
+            />
+          </van-popup>
+
           <!-- 来访事由下拉选择 -->
           <van-field
             v-model="form.visitPurpose"
@@ -95,6 +128,7 @@
             />
           </van-popup>
         </van-cell-group>
+
 
         <div style="margin: 16px;">
           <van-button round block type="primary" native-type="submit" :loading="submitLoading">
@@ -219,14 +253,19 @@ const getFullPdfUrl = (url) => {
   return url
 }
 
-const form = reactive({
+const todayStr = new Date().toISOString().split('T')[0]
+const timeRangeDisplay = ref('09:00 ~ 18:00 (全天段)')
 
+const form = reactive({
   scenario: 'B',
   visitorName: '',
   idCard: '',
   phone: '',
   hostUserId: null,
-  visitPurpose: ''
+  visitPurpose: '',
+  visitDate: todayStr,
+  visitStartTime: '09:00',
+  visitEndTime: '18:00'
 })
 
 const selectedDeptName = ref('')
@@ -238,6 +277,34 @@ const searchPhone = ref('')
 const showDeptPicker = ref(false)
 const showHostPicker = ref(false)
 const showReasonPicker = ref(false)
+const showDatePicker = ref(false)
+const showTimePicker = ref(false)
+
+const timeRangeColumns = [
+  { text: '08:30 ~ 11:30 (上午段)', start: '08:30', end: '11:30' },
+  { text: '13:30 ~ 17:30 (下午段)', start: '13:30', end: '17:30' },
+  { text: '09:00 ~ 18:00 (全天段)', start: '09:00', end: '18:00' },
+  { text: '18:00 ~ 21:00 (夜班段)', start: '18:00', end: '21:00' }
+]
+
+const onDateConfirm = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  form.visitDate = `${y}-${m}-${d}`
+  showDatePicker.value = false
+}
+
+const onTimeRangeConfirm = (val) => {
+  const selected = val && val.selectedOptions && val.selectedOptions[0] ? val.selectedOptions[0] : null
+  if (selected) {
+    timeRangeDisplay.value = selected.text
+    form.visitStartTime = selected.start
+    form.visitEndTime = selected.end
+    showTimePicker.value = false
+  }
+}
+
 
 const onFindTokenConfirm = async (action) => {
   if (action === 'cancel') {
