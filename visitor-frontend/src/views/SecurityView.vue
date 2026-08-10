@@ -130,6 +130,7 @@ import { showToast, showSuccessToast, showFailToast } from 'vant'
 import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
 import { Html5Qrcode } from 'html5-qrcode'
+import jsQR from 'jsqr'
 
 const showGateQrModal = ref(false)
 const showCameraModal = ref(false)
@@ -150,15 +151,105 @@ const triggerPhotoScan = () => {
   }
 }
 
+// 高精度抗摩尔纹图片二维码解码预处理器
+const decodeQrFromImageFile = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        // Canvas 降采样至 800px（消除电脑屏幕拍摄的高频摩尔纹噪点）
+        const maxDim = 800
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // 尝试 1: 直接使用 jsQR 解析
+        let imageData = ctx.getImageData(0, 0, width, height)
+        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert"
+        })
+
+        if (code && code.data) {
+          return resolve(code.data)
+        }
+
+        // 尝试 2: 色彩反转与全模式解析
+        code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth"
+        })
+
+        if (code && code.data) {
+          return resolve(code.data)
+        }
+
+        // 尝试 3: 二值化对比度强化处理
+        const data = imageData.data
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3
+          const val = avg > 120 ? 255 : 0
+          data[i] = val
+          data[i + 1] = val
+          data[i + 2] = val
+        }
+        ctx.putImageData(imageData, 0, 0)
+        const imageDataEnhanced = ctx.getImageData(0, 0, width, height)
+        code = jsQR(imageDataEnhanced.data, imageDataEnhanced.width, imageDataEnhanced.height, {
+          inversionAttempts: "attemptBoth"
+        })
+
+        if (code && code.data) {
+          return resolve(code.data)
+        }
+
+        reject(new Error("未能识别出二维码"))
+      }
+      img.onerror = () => reject(new Error("图片加载失败"))
+      img.src = e.target.result
+    }
+    reader.onerror = () => reject(new Error("文件读取失败"))
+    reader.readAsDataURL(file)
+  })
+}
+
 const handleFileScan = async (event) => {
   const file = event.target.files[0]
   if (!file) return
   
-  showToast({ message: '正在解析二维码...', duration: 1000 })
+  showToast({ message: '正在高精度识别二维码...', duration: 1500 })
+  
+  let decodedText = null
   try {
-    const html5Qrcode = new Html5Qrcode("qr-reader")
-    const decodedText = await html5Qrcode.scanFile(file, true)
-    
+    // 优先跑 Canvas 降采样 + jsQR 抗摩尔纹识别算法
+    decodedText = await decodeQrFromImageFile(file)
+  } catch (e) {
+    // 降级使用 Html5Qrcode.scanFile 补充校验
+    try {
+      const html5Qrcode = new Html5Qrcode("qr-reader")
+      decodedText = await html5Qrcode.scanFile(file, true)
+    } catch (e2) {
+      decodedText = null
+    }
+  }
+
+  if (decodedText) {
     let token = decodedText
     if (decodedText && decodedText.includes('token=')) {
       const match = decodedText.match(/token=([^&]+)/)
@@ -167,12 +258,13 @@ const handleFileScan = async (event) => {
     passTokenInput.value = token
     showSuccessToast('二维码识别成功！')
     handleScan()
-  } catch (e) {
-    showFailToast('无法识别该图片中的二维码，请拍摄清晰原图')
-  } finally {
-    event.target.value = ''
+  } else {
+    showFailToast('无法识别该图片，请贴近二维码对焦拍摄')
   }
+
+  event.target.value = ''
 }
+
 
 
 const startCameraScanner = async () => {

@@ -13,6 +13,7 @@
     "axios": "^1.6.7",
     "element-plus": "^2.5.3",
     "html5-qrcode": "^2.3.8",
+    "jsqr": "^1.4.0",
     "pinia": "^2.1.7",
     "qrcode.vue": "^3.4.1",
     "vant": "^4.8.3",
