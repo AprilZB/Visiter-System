@@ -63,29 +63,42 @@ public class SecurityController {
             com.maitong.visitor.dto.OcrResultDTO ocrResult = ocrService.recognizeIdCard(file);
             if (ocrResult != null && ocrResult.isSuccess() && ocrResult.getRawText() != null) {
                 String rawText = ocrResult.getRawText().toUpperCase();
+                System.out.println("[Security OCR Scan] 识别到照片全量文本: " + rawText);
                 
-                // 正则 1: 提取 8 位纯大写字母数字短码 (如 F9B3B923)
-                java.util.regex.Matcher codeMatcher = java.util.regex.Pattern.compile("[A-Z0-9]{8}").matcher(rawText);
-                while (codeMatcher.find()) {
-                    String candidate = codeMatcher.group();
-                    // 过滤纯数字长串
-                    if (!candidate.matches("^\\d+$") || candidate.length() == 8) {
-                        detectedToken = candidate;
-                        break;
+                // 优先模式 1: 查找 【短码】 标识后面的 8 位大写字母/数字短码 (如 EB83C3F8)
+                java.util.regex.Matcher tagMatcher = java.util.regex.Pattern.compile("(?:短码|放行码|通行码|CODE)[：:：\\s]*([A-Z0-9]{8})").matcher(rawText);
+                if (tagMatcher.find()) {
+                    detectedToken = tagMatcher.group(1);
+                    System.out.println("[Security OCR Scan] 命中短码标签正则: " + detectedToken);
+                }
+
+                // 优先模式 2: 全局匹配包含字母与数字组合的 8 位短码 (如 EB83C3F8)
+                if (detectedToken == null) {
+                    java.util.regex.Matcher codeMatcher = java.util.regex.Pattern.compile("\\b([A-Z0-9]{8})\\b").matcher(rawText);
+                    while (codeMatcher.find()) {
+                        String candidate = codeMatcher.group(1);
+                        // 必须同时包含大写字母与数字
+                        if (candidate.matches(".*[A-Z].*") && candidate.matches(".*[0-9].*")) {
+                            detectedToken = candidate;
+                            System.out.println("[Security OCR Scan] 命中8位混合短码正则: " + detectedToken);
+                            break;
+                        }
                     }
                 }
 
-                // 正则 2: 提取 11 位手机号
+                // 优先模式 3: 提取 11 位手机号
                 if (detectedToken == null) {
                     java.util.regex.Matcher phoneMatcher = java.util.regex.Pattern.compile("1[3-9]\\d{9}").matcher(rawText);
                     if (phoneMatcher.find()) {
                         detectedToken = phoneMatcher.group();
+                        System.out.println("[Security OCR Scan] 命中手机号正则: " + detectedToken);
                     }
                 }
             }
         } catch (Exception e) {
             System.err.println("调用 10.11.100.238:8081/ocr 识别失败: " + e.getMessage());
         }
+
 
         // 第二重: 若 OCR 服务未识别到文字短码，降级使用 ZXing 图像二值化多尺度切片解算二维码图形
         if (detectedToken == null) {
