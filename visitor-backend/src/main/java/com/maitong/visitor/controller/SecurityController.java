@@ -44,33 +44,69 @@ public class SecurityController {
         return Result.error("放行核销失败");
     }
 
+    @Autowired
+    private com.maitong.visitor.service.OcrService ocrService;
+
     /**
-     * 3. 门岗拍照/图片上传服务端高阶 CV 多尺度解算识别接口 (解决手机拍照屏幕水纹与背景噪点)
+     * 3. 门岗拍照/图片上传服务端 PaddleOCR + ZXing 智能解算接口 (完美调用 10.11.100.238:8081/ocr)
      */
     @PostMapping("/scan-image")
     public Result<SecurityScanDTO> scanImageVerify(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return Result.error("未收到上传的照片");
         }
+        
+        String detectedToken = null;
+
+        // 第一重: 调用 10.11.100.238:8081/ocr 深度学习 OCR 服务识别照片中的 8 位短码或手机号
         try {
-            java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(file.getInputStream());
-            if (originalImage == null) {
-                return Result.error("无法读取照片图像数据");
+            com.maitong.visitor.dto.OcrResultDTO ocrResult = ocrService.recognizeIdCard(file);
+            if (ocrResult != null && ocrResult.isSuccess() && ocrResult.getRawText() != null) {
+                String rawText = ocrResult.getRawText().toUpperCase();
+                
+                // 正则 1: 提取 8 位纯大写字母数字短码 (如 F9B3B923)
+                java.util.regex.Matcher codeMatcher = java.util.regex.Pattern.compile("[A-Z0-9]{8}").matcher(rawText);
+                while (codeMatcher.find()) {
+                    String candidate = codeMatcher.group();
+                    // 过滤纯数字长串
+                    if (!candidate.matches("^\\d+$") || candidate.length() == 8) {
+                        detectedToken = candidate;
+                        break;
+                    }
+                }
+
+                // 正则 2: 提取 11 位手机号
+                if (detectedToken == null) {
+                    java.util.regex.Matcher phoneMatcher = java.util.regex.Pattern.compile("1[3-9]\\d{9}").matcher(rawText);
+                    if (phoneMatcher.find()) {
+                        detectedToken = phoneMatcher.group();
+                    }
+                }
             }
-
-            // 多尺度切片识别算法 (Original, 70% Center Crop, HybridBinarizer & GlobalHistogramBinarizer)
-            String decodedToken = decodeQrFromBufferedImage(originalImage);
-
-            if (decodedToken == null || decodedToken.trim().isEmpty()) {
-                return Result.error("未能在此照片中定位识别到二维码，请贴近二维码拍摄");
-            }
-
-            // 提取 token 后直接进行身份核销与全量数据比对
-            return scanVerify(decodedToken);
         } catch (Exception e) {
-            return Result.error("照片识别算法处理失败: " + e.getMessage());
+            System.err.println("调用 10.11.100.238:8081/ocr 识别失败: " + e.getMessage());
         }
+
+        // 第二重: 若 OCR 服务未识别到文字短码，降级使用 ZXing 图像二值化多尺度切片解算二维码图形
+        if (detectedToken == null) {
+            try {
+                java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(file.getInputStream());
+                if (originalImage != null) {
+                    detectedToken = decodeQrFromBufferedImage(originalImage);
+                }
+            } catch (Exception e) {
+                // 忽略图片读取异常
+            }
+        }
+
+        if (detectedToken == null || detectedToken.trim().isEmpty()) {
+            return Result.error("照片中未识别到有效二维码或 8 位短码，请拍照包含下方大字短码或直接输入手机号核验");
+        }
+
+        // 一键触发门岗身份核销与放行比对
+        return scanVerify(detectedToken);
     }
+
 
     private String decodeQrFromBufferedImage(java.awt.image.BufferedImage img) {
         // 尝试 1: 全图 HybridBinarizer
