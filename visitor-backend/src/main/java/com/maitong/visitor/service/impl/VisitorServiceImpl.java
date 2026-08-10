@@ -199,42 +199,58 @@ public class VisitorServiceImpl implements VisitorService {
 
 
         if (record == null) {
-            dto.setCanPass(false);
-            dto.setWarningMessage("通行码不匹配或已被核销");
-            return dto;
+            // 二次 Fallback: 尝试按手机号检索该手机号最新的到访申请单，确保门岗无论拦截与否都能清晰展示访客身份
+            LambdaQueryWrapper<VisitorRecord> phoneWrapper = new LambdaQueryWrapper<>();
+            phoneWrapper.eq(VisitorRecord::getPhone, queryStr)
+                        .orderByDesc(VisitorRecord::getId).last("LIMIT 1");
+            record = visitorRecordMapper.selectOne(phoneWrapper);
+            
+            if (record == null) {
+                dto.setCanPass(false);
+                dto.setWarningMessage("通行凭证不匹配且未查询到该手机号的历史申请单");
+                return dto;
+            }
         }
 
+        // 统一全量装填访客基本信息（保证保安端绝不出现空白行）
         dto.setVisitNo(record.getVisitNo());
-        dto.setVisitorName(record.getVisitorName());
-        dto.setIdCardMasked(record.getIdCardMasked()); // 只返回 4 位掩码脱敏身份证，绝对不露明文与协议全文
-        dto.setPhone(record.getPhone());
-        dto.setHostName(record.getHostName());
-        dto.setHostDept(record.getHostDept());
-        dto.setVisitPurpose(record.getVisitPurpose());
+        dto.setVisitorName(record.getVisitorName() != null ? record.getVisitorName() : "未录入姓名");
+        dto.setIdCardMasked(record.getIdCardMasked() != null ? record.getIdCardMasked() : "未录入身份证");
+        dto.setPhone(record.getPhone() != null ? record.getPhone() : "-");
+        dto.setHostName(record.getHostName() != null ? record.getHostName() : "未知受访人");
+        dto.setHostDept(record.getHostDept() != null ? record.getHostDept() : "未知部门");
+        dto.setVisitPurpose(record.getVisitPurpose() != null ? record.getVisitPurpose() : "商务到访");
         dto.setStatus(record.getStatus());
         dto.setNdaSigned(record.getNdaSigned() != null && record.getNdaSigned() == 1);
 
         if (!dto.isNdaSigned()) {
             dto.setCanPass(false);
-            dto.setWarningMessage("【拦截】该访客未签署保密协议！禁止放行！");
+            dto.setWarningMessage("【拦截】访客(" + dto.getVisitorName() + ")尚未签署保密协议 (NDA)！禁止放行！");
             return dto;
         }
 
         if ("ENTERED".equalsIgnoreCase(record.getStatus())) {
             dto.setCanPass(false);
-            dto.setWarningMessage("【警告】该通行码已经核销过，请勿重复放行！");
+            dto.setWarningMessage("【警告】访客(" + dto.getVisitorName() + ")的通行码已经核销放行过，请勿重复放行！");
+            return dto;
+        }
+
+        if ("PENDING_APPROVAL".equalsIgnoreCase(record.getStatus())) {
+            dto.setCanPass(false);
+            dto.setWarningMessage("【拦截】访客(" + dto.getVisitorName() + ")的申请仍处于待员工审批状态！");
             return dto;
         }
 
         if ("REJECTED".equalsIgnoreCase(record.getStatus())) {
             dto.setCanPass(false);
-            dto.setWarningMessage("【拒绝】受访员工已拒绝该来访申请");
+            dto.setWarningMessage("【拒绝】受访员工已拒绝访客(" + dto.getVisitorName() + ")的到访申请");
             return dto;
         }
 
         dto.setCanPass(true);
         dto.setWarningMessage("人证比对一致，可予以确认放行");
         return dto;
+
     }
 
     @Override
