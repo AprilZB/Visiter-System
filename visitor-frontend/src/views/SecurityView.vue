@@ -234,37 +234,52 @@ const handleFileScan = async (event) => {
   const file = event.target.files[0]
   if (!file) return
   
-  showToast({ message: '正在高精度识别二维码...', duration: 1500 })
+  showToast({ message: '正在智能识别照片二维码...', duration: 2000 })
   
-  let decodedText = null
   try {
-    // 优先跑 Canvas 降采样 + jsQR 抗摩尔纹识别算法
-    decodedText = await decodeQrFromImageFile(file)
+    // 优先调用后端专业级 ZXing 多尺度切片与自适应二值化 CV 解算引擎
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const res = await axios.post('/api/security/scan-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    
+    if (res.data.code === 200 && res.data.data) {
+      scanResult.value = res.data.data
+      showSuccessToast('照片二维码识别并核验成功！')
+      event.target.value = ''
+      return
+    } else if (res.data.message) {
+      showFailToast(res.data.message)
+      event.target.value = ''
+      return
+    }
   } catch (e) {
-    // 降级使用 Html5Qrcode.scanFile 补充校验
-    try {
-      const html5Qrcode = new Html5Qrcode("qr-reader")
-      decodedText = await html5Qrcode.scanFile(file, true)
-    } catch (e2) {
-      decodedText = null
-    }
+    // 降级尝试前端计算
   }
 
-  if (decodedText) {
-    let token = decodedText
-    if (decodedText && decodedText.includes('token=')) {
-      const match = decodedText.match(/token=([^&]+)/)
-      if (match && match[1]) token = match[1]
+  // 客户端平滑降采样兜底算法
+  try {
+    const decodedText = await decodeQrFromImageFile(file)
+    if (decodedText) {
+      let token = decodedText
+      if (decodedText.includes('token=')) {
+        const match = decodedText.match(/token=([^&]+)/)
+        if (match && match[1]) token = match[1]
+      }
+      passTokenInput.value = token
+      showSuccessToast('二维码识别成功！')
+      handleScan()
+      event.target.value = ''
+      return
     }
-    passTokenInput.value = token
-    showSuccessToast('二维码识别成功！')
-    handleScan()
-  } else {
-    showFailToast('无法识别该图片，请贴近二维码对焦拍摄')
-  }
+  } catch (e) {}
 
+  showFailToast('照片中未定位到有效二维码，建议贴近二维码拍摄，或直接报下方的 8 位短码/手机号放行')
   event.target.value = ''
 }
+
 
 
 
