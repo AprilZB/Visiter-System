@@ -47,17 +47,18 @@
         v-model="passTokenInput"
         center
         clearable
-        placeholder="对准扫码枪扫描 / 拍照 / 粘贴凭证"
-        label="通行凭证"
+        placeholder="输入 8位短码 / 访客手机号 / 扫码核验"
+        label="核验凭证"
         @keyup.enter="handleScan"
       >
         <template #button>
-          <van-button size="small" type="primary" :loading="scanning" @click="handleScan">核验放行</van-button>
+          <van-button size="small" type="primary" :loading="scanning" @click="handleScan">查询/核验放行</van-button>
         </template>
       </van-field>
       <div style="font-size: 11px; color: #969799; margin-top: 6px; text-align: right;">
-        * 支持拍照扫码、红外扫码枪对准扫描或手机实时镜头扫码
+        * 支持：① 拍照扫码；② 输入访客手机号；③ 报出 8 位短码；④ 红外扫码枪
       </div>
+
     </div>
 
 

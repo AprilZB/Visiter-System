@@ -186,9 +186,15 @@ public class VisitorServiceImpl implements VisitorService {
             return dto;
         }
 
+        String queryStr = passToken.trim();
         LambdaQueryWrapper<VisitorRecord> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(VisitorRecord::getPassToken, passToken);
+        wrapper.and(w -> w.eq(VisitorRecord::getPassToken, queryStr)
+                         .or().eq(VisitorRecord::getPhone, queryStr)
+                         .or().likeRight(VisitorRecord::getPassToken, queryStr)
+                         .or().eq(VisitorRecord::getVisitNo, queryStr));
+        wrapper.orderByDesc(VisitorRecord::getId).last("LIMIT 1");
         VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
+
 
         if (record == null) {
             dto.setCanPass(false);

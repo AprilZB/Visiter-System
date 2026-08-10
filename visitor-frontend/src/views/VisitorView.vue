@@ -175,12 +175,24 @@
       <!-- 二维码展现区 (仅在已签署协议且审批通过后展现) -->
       <div v-else-if="isNdaSigned && passToken" class="qr-box">
         <div class="qr-title">限时动态通行二维码</div>
-        <div class="qr-watermark">
-          <qrcode-vue :value="passToken" :size="220" level="H" />
+        
+        <!-- 极致稀疏、抗屏幕拍摄摩尔纹的大格子二维码 (仅渲染短 Token 串) -->
+        <div class="qr-watermark" style="padding: 12px; background: #fff; display: inline-block; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+          <qrcode-vue :value="shortPassCode" :size="200" level="L" />
           <div class="scan-line"></div>
         </div>
-        <p class="qr-tip">请向门岗保安出示此二维码核验入园（防截图动态水纹）</p>
+
+        <!-- 保安免扫强兜底：大字号 8 位短通行码面板 -->
+        <div style="margin-top: 12px; background: #fffbe8; border: 1px solid #ffe58f; padding: 10px 16px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 12px; color: #d46b08; font-weight: bold;">【门岗放行备用短码】若扫码受阻可报下方短码或手机号</div>
+          <div style="font-size: 24px; font-weight: 900; color: #1989fa; letter-spacing: 2px; margin-top: 4px; font-family: monospace;">
+            {{ shortPassCode }}
+          </div>
+        </div>
+
+        <p class="qr-tip" style="margin-top: 8px;">请向门岗保安出示此二维码，或直接出示上方 8 位短码/手机号放行</p>
       </div>
+
 
       <!-- 协议拦截按钮 -->
       <div v-else-if="!isNdaSigned" class="nda-blocked-box">
@@ -260,6 +272,12 @@ import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
 
 const route = useRoute()
+
+const shortPassCode = computed(() => {
+  if (!passToken.value) return ''
+  return passToken.value.substring(0, 8).toUpperCase()
+})
+
 
 
 const getFullPdfUrl = (url) => {
