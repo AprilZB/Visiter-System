@@ -275,8 +275,11 @@ const route = useRoute()
 
 const shortPassCode = computed(() => {
   if (!passToken.value) return ''
-  return passToken.value.substring(0, 8).toUpperCase()
+  // 过滤 PASS_ 等固定前缀，输出纯粹的 8 位大写字母+数字组合
+  const cleanToken = passToken.value.replace(/^PASS_/i, '')
+  return cleanToken.substring(0, 8).toUpperCase()
 })
+
 
 
 

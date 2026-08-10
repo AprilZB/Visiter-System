@@ -191,8 +191,10 @@ public class VisitorServiceImpl implements VisitorService {
         wrapper.and(w -> w.eq(VisitorRecord::getPassToken, queryStr)
                          .or().eq(VisitorRecord::getPhone, queryStr)
                          .or().likeRight(VisitorRecord::getPassToken, queryStr)
+                         .or().likeRight(VisitorRecord::getPassToken, "PASS_" + queryStr)
                          .or().eq(VisitorRecord::getVisitNo, queryStr));
         wrapper.orderByDesc(VisitorRecord::getId).last("LIMIT 1");
+
         VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
 
 
