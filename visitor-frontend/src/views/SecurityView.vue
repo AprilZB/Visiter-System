@@ -322,9 +322,18 @@ const startCameraScanner = async () => {
       () => {}
     )
   } catch (e) {
-    showFailToast('启动摄像头失败，请允许浏览器使用摄像头！')
+    const isHttps = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    if (!isHttps) {
+      showFailToast({
+        message: '受 iOS Safari 苹果安全规范限制，HTTP 协议下网页无法开启实时摄像头。请点左侧【拍照/上传识别】或使用【手机自带相机直扫】！',
+        duration: 4500
+      })
+    } else {
+      showFailToast('启动摄像头失败，请在设置中允许浏览器使用摄像头！')
+    }
     showCameraModal.value = false
   }
+
 }
 
 const stopCameraScanner = () => {

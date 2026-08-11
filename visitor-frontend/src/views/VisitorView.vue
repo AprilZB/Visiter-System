@@ -176,12 +176,18 @@
       <div v-else-if="isNdaSigned && passToken" class="qr-box">
         <div class="qr-title">限时动态通行二维码</div>
         
-        <!-- 支持手机 (iOS/Android) 自带原生相机/微信直接扫码调起浏览器一键核销放行 -->
-        <div class="qr-watermark" style="padding: 12px; background: #fff; display: inline-block; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-          <qrcode-vue :value="nativeVerifyUrl" :size="200" level="L" />
-          <div class="scan-line"></div>
+        <!-- 双模式测试对比切换器（提供浏览器 URL 链接模式与纯短码模式供测试选择） -->
+        <div style="margin: 8px 0 12px 0;">
+          <van-tabs v-model:active="activeQrModeTab" type="card" shrink>
+            <van-tab title="模式一: 手机相机直扫 (浏览器链接)" name="url"></van-tab>
+            <van-tab title="模式二: 纯短码/抗摩尔纹" name="code"></van-tab>
+          </van-tabs>
         </div>
 
+        <div class="qr-watermark" style="padding: 12px; background: #fff; display: inline-block; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+          <qrcode-vue :value="currentQrValue" :size="200" level="L" />
+          <div class="scan-line"></div>
+        </div>
 
         <!-- 保安免扫强兜底：大字号 8 位短通行码面板 -->
         <div style="margin-top: 12px; background: #fffbe8; border: 1px solid #ffe58f; padding: 10px 16px; border-radius: 8px; text-align: center;">
@@ -191,8 +197,12 @@
           </div>
         </div>
 
-        <p class="qr-tip" style="margin-top: 8px;">请向门岗保安出示此二维码，或直接出示上方 8 位短码/手机号放行</p>
+        <p class="qr-tip" style="margin-top: 8px;">
+          <span v-if="activeQrModeTab === 'url'">📱 手机自带相机/扫一扫直扫本码，可调起浏览器一键验证放行</span>
+          <span v-else>📷 适合电脑屏幕拍摄，保安在门岗端选择【照片识别】或直接报下方 8 位短码放行</span>
+        </p>
       </div>
+
 
 
       <!-- 协议拦截按钮 -->
@@ -284,10 +294,17 @@ const shortPassCode = computed(() => {
   return String(Math.abs(hash)).padStart(6, '9')
 })
 
-const nativeVerifyUrl = computed(() => {
+const activeQrModeTab = ref('url')
+
+const currentQrValue = computed(() => {
   if (!passToken.value) return ''
-  return `${window.location.origin}/security?verifyToken=${encodeURIComponent(passToken.value)}`
+  if (activeQrModeTab.value === 'url') {
+    return `${window.location.origin}/security?verifyToken=${encodeURIComponent(passToken.value)}`
+  } else {
+    return shortPassCode.value
+  }
 })
+
 
 
 

@@ -36,11 +36,30 @@
           <el-input v-model="queryPhone" placeholder="请输入申请时填报的手机号" />
         </el-form-item>
       </el-form>
-      <div v-if="foundResult" style="text-align: center; padding: 16px; background: #f0f9eb; border-radius: 8px; margin-top: 12px;">
-        <h4 style="color: #67c23a; margin: 0 0 8px 0;">已查询到近期有效通行码 (访客: {{ foundResult.visitorName }})</h4>
-        <qrcode-vue :value="foundResult.passToken" :size="160" level="H" />
-        <p style="font-size: 12px; color: #909399; margin-top: 8px;">出示给门岗保安扫码即可放行入园</p>
+      <div v-if="foundResult" style="text-align: center; padding: 16px; background: #f0f9eb; border-radius: 8px; margin-top: 12px; border: 1px solid #e1f3d8;">
+        <h4 style="color: #67c23a; margin: 0 0 12px 0;">已查询到近期有效通行码 (访客: {{ foundResult.visitorName }})</h4>
+        
+        <!-- 模式切换 Tabs，供用户测试对比决定保留哪种模式 -->
+        <el-radio-group v-model="portalQrMode" size="small" style="margin-bottom: 12px;">
+          <el-radio-button label="url">模式一: 手机相机直扫 (浏览器链接)</el-radio-button>
+          <el-radio-button label="code">模式二: 纯短码/抗摩尔纹</el-radio-button>
+        </el-radio-group>
+
+        <div style="padding: 12px; background: #fff; display: inline-block; border-radius: 8px; border: 1px solid #dcdfe6;">
+          <qrcode-vue :value="portalQrValue" :size="180" level="L" />
+        </div>
+
+        <!-- 显眼提示下方的 8 位/6 位大字号放行短码 -->
+        <div style="margin-top: 12px; background: #e6f7ff; border: 1px solid #91d5ff; padding: 10px; border-radius: 6px;">
+          <div style="font-size: 12px; color: #1890ff; font-weight: bold;">【门岗放行备用短码】若扫码受阻可报下方短码或手机号</div>
+          <div style="font-size: 24px; font-weight: 900; color: #096dd9; font-family: monospace; letter-spacing: 2px; margin-top: 4px;">
+            {{ getShortPassCode(foundResult.passToken) }}
+          </div>
+        </div>
+
+        <p style="font-size: 12px; color: #909399; margin-top: 8px;">出示给门岗保安扫码或报出短码即可放行入园</p>
       </div>
+
       <template #footer>
         <el-button @click="phoneDialogVisible = false">关闭</el-button>
         <el-button type="primary" :loading="searching" @click="searchByPhone">提交查询</el-button>
@@ -51,7 +70,7 @@
 
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import QrcodeVue from 'qrcode.vue'
@@ -64,6 +83,24 @@ const phoneDialogVisible = ref(false)
 const queryPhone = ref('')
 const searching = ref(false)
 const foundResult = ref(null)
+
+const portalQrMode = ref('url')
+
+const portalQrValue = computed(() => {
+  if (!foundResult.value || !foundResult.value.passToken) return ''
+  if (portalQrMode.value === 'url') {
+    return `${window.location.origin}/security?verifyToken=${encodeURIComponent(foundResult.value.passToken)}`
+  } else {
+    return getShortPassCode(foundResult.value.passToken)
+  }
+})
+
+const getShortPassCode = (token) => {
+  if (!token) return ''
+  const cleanToken = token.replace(/^PASS_/i, '')
+  return cleanToken.substring(0, 8).toUpperCase()
+}
+
 
 const openPhoneDialog = () => {
   queryPhone.value = ''
