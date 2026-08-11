@@ -275,10 +275,14 @@ const route = useRoute()
 
 const shortPassCode = computed(() => {
   if (!passToken.value) return ''
-  // 过滤 PASS_ 等固定前缀，输出纯粹的 8 位大写字母+数字组合
-  const cleanToken = passToken.value.replace(/^PASS_/i, '')
-  return cleanToken.substring(0, 8).toUpperCase()
+  // 计算 6 位纯数字放行短码（深度学习 OCR 对 6 位大字纯数字拥有接近 100% 的极致识别率）
+  let hash = 0
+  for (let i = 0; i < passToken.value.length; i++) {
+    hash = (hash * 31 + passToken.value.charCodeAt(i)) % 1000000
+  }
+  return String(Math.abs(hash)).padStart(6, '9')
 })
+
 
 
 

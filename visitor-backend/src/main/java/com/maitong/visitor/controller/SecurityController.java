@@ -65,12 +65,22 @@ public class SecurityController {
                 String rawText = ocrResult.getRawText().toUpperCase();
                 System.out.println("[Security OCR Scan] 识别到照片全量文本: " + rawText);
                 
-                // 优先模式 1: 查找 【短码】 标识后面的 8 位大写字母/数字短码 (如 EB83C3F8)
-                java.util.regex.Matcher tagMatcher = java.util.regex.Pattern.compile("(?:短码|放行码|通行码|CODE)[：:：\\s]*([A-Z0-9]{8})").matcher(rawText);
-                if (tagMatcher.find()) {
-                    detectedToken = tagMatcher.group(1);
-                    System.out.println("[Security OCR Scan] 命中短码标签正则: " + detectedToken);
+                // 优先模式 1: 提取 6 位纯数字放行短码 (深度学习 PaddleOCR 识别率接近 100%)
+                java.util.regex.Matcher numCodeMatcher = java.util.regex.Pattern.compile("\\b(\\d{6})\\b").matcher(rawText);
+                if (numCodeMatcher.find()) {
+                    detectedToken = numCodeMatcher.group(1);
+                    System.out.println("[Security OCR Scan] 命中 6 位纯数字放行短码: " + detectedToken);
                 }
+
+                // 优先模式 2: 查找 【短码】 标识后面的 8 位大写字母/数字短码 (如 EB83C3F8)
+                if (detectedToken == null) {
+                    java.util.regex.Matcher tagMatcher = java.util.regex.Pattern.compile("(?:短码|放行码|通行码|CODE)[：:：\\s]*([A-Z0-9]{8})").matcher(rawText);
+                    if (tagMatcher.find()) {
+                        detectedToken = tagMatcher.group(1);
+                        System.out.println("[Security OCR Scan] 命中短码标签正则: " + detectedToken);
+                    }
+                }
+
 
                 // 优先模式 2: 全局匹配包含字母与数字组合的 8 位短码 (如 EB83C3F8)
                 if (detectedToken == null) {

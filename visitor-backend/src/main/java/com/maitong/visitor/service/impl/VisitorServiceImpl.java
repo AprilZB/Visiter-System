@@ -198,6 +198,19 @@ public class VisitorServiceImpl implements VisitorService {
         VisitorRecord record = visitorRecordMapper.selectOne(wrapper);
 
 
+        if (record == null && queryStr.matches("^\\d{6}$")) {
+            // 尝试按 6 位纯数字放行短码全量反查最近的到访记录
+            LambdaQueryWrapper<VisitorRecord> allWrapper = new LambdaQueryWrapper<>();
+            allWrapper.isNotNull(VisitorRecord::getPassToken).orderByDesc(VisitorRecord::getId).last("LIMIT 50");
+            java.util.List<VisitorRecord> recentList = visitorRecordMapper.selectList(allWrapper);
+            for (VisitorRecord r : recentList) {
+                if (queryStr.equals(calculateNumericShortCode(r.getPassToken()))) {
+                    record = r;
+                    break;
+                }
+            }
+        }
+
         if (record == null) {
             // 二次 Fallback: 尝试按手机号检索该手机号最新的到访申请单，确保门岗无论拦截与否都能清晰展示访客身份
             LambdaQueryWrapper<VisitorRecord> phoneWrapper = new LambdaQueryWrapper<>();
@@ -211,6 +224,7 @@ public class VisitorServiceImpl implements VisitorService {
                 return dto;
             }
         }
+
 
         // 统一全量装填访客基本信息（保证保安端绝不出现空白行）
         dto.setVisitNo(record.getVisitNo());
@@ -295,4 +309,18 @@ public class VisitorServiceImpl implements VisitorService {
         wrapper.orderByDesc(VisitorRecord::getId);
         return visitorRecordMapper.selectList(wrapper);
     }
+
+    private String calculateNumericShortCode(String passToken) {
+        if (passToken == null || passToken.isEmpty()) return "";
+        int hash = 0;
+        for (int i = 0; i < passToken.length(); i++) {
+            hash = (hash * 31 + passToken.charAt(i)) % 1000000;
+        }
+        String code = String.valueOf(Math.abs(hash));
+        while (code.length() < 6) {
+            code = "9" + code;
+        }
+        return code;
+    }
 }
+
