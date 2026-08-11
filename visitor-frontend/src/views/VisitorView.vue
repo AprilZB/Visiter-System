@@ -248,16 +248,17 @@
           <span class="nda-version-tag">版本: {{ ndaTemplate.version || 'V1.0.0' }}</span>
         </div>
 
-        <div v-if="ndaTemplate.pdfUrl" class="nda-pdf-view" style="padding: 10px 12px;">
-          <iframe :src="getFullPdfUrl(ndaTemplate.pdfUrl)" style="width: 100%; height: 260px; border: 1px dashed #c8c9cc; border-radius: 6px; background: #fff;"></iframe>
-          <div style="text-align: right; margin-top: 6px;">
-            <a :href="getFullPdfUrl(ndaTemplate.pdfUrl)" target="_blank" style="font-size: 13px; color: #1989fa; text-decoration: underline;">
-              📄 查看/下载官方盖章版 PDF 协议原件
+        <!-- 协议条款文本展看区 (带优雅 PDF 官方盖章附件预览通道) -->
+        <div class="nda-modal-body" style="padding: 12px; max-height: 280px; overflow-y: auto; background: #fafafa; border: 1px solid #ebedf0; border-radius: 8px; font-size: 13px; line-height: 1.6; color: #323233;">
+          <div v-if="ndaTemplate.pdfUrl" style="margin-bottom: 12px; background: #e8f4ff; border: 1px solid #abdcff; padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 12px; color: #1989fa; font-weight: bold;">📄 官方盖章版 PDF 协议备案文档:</span>
+            <a :href="getFullPdfUrl(ndaTemplate.pdfUrl)" target="_blank" style="font-size: 12px; color: #1989fa; text-decoration: underline; font-weight: bold;">
+              点击在新窗口预览/下载 PDF 原件
             </a>
           </div>
+          <div v-html="ndaTemplate.content || defaultNdaContent"></div>
         </div>
 
-        <div v-else class="nda-modal-body" v-html="ndaTemplate.content"></div>
 
 
         <!-- 强制电子手写签名区域 -->
@@ -337,13 +338,23 @@ const currentQrValue = computed(() => {
 
 
 
+const defaultNdaContent = `
+  <h4>浙江脉通智造科技有限公司外来人员保密协议书</h4>
+  <p><b>一、保密义务与范围</b></p>
+  <p>1. 本协议适用于所有进入浙江脉通智造科技有限公司厂区、车间及研发大楼的外来到访人员。</p>
+  <p>2. 到访人员在厂区内严禁私自拍照、录音、拷贝内部技术资料、工艺参数及产品图纸。</p>
+  <p>3. 未经接待部门许可，不得擅自进入涉密生产线、无尘车间与研发实验室。</p>
+  <p><b>二、法律效力与存证说明</b></p>
+  <p>4. 本电子签署协议具有法律效力，签署时的设备 IP、手写签名及时间戳将实时通过 SHA-256 数字哈希链归档存证。</p>
+`
+
 const getFullPdfUrl = (url) => {
   if (!url) return ''
-  if (url.startsWith('/')) {
-    return 'http://localhost:8096' + url
-  }
-  return url
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const apiHost = window.location.protocol + '//' + window.location.hostname + ':8096'
+  return apiHost + (url.startsWith('/') ? url : '/' + url)
 }
+
 
 const todayStr = new Date().toISOString().split('T')[0]
 const onFindTokenConfirm = async (action) => {

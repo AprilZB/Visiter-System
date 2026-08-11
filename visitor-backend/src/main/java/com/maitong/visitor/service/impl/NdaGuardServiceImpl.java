@@ -65,13 +65,24 @@ public class NdaGuardServiceImpl implements NdaGuardService {
 
     @Override
     public SysNdaTemplate getActiveNdaTemplate() {
-
         LambdaQueryWrapper<SysNdaTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNdaTemplate::getIsActive, 1)
                .orderByDesc(SysNdaTemplate::getId)
                .last("LIMIT 1");
-        return sysNdaTemplateMapper.selectOne(wrapper);
+        SysNdaTemplate template = sysNdaTemplateMapper.selectOne(wrapper);
+
+        // 自动防崩溃校验: 若物理 PDF 文件不存在，清空 pdfUrl，防止前端 iframe 请求 404 触发 Whitelabel Error Page
+        if (template != null && template.getPdfUrl() != null && !template.getPdfUrl().trim().isEmpty()) {
+            String relativePath = template.getPdfUrl().replace("/uploads/", "");
+            String localPath = System.getProperty("user.dir") + java.io.File.separator + "uploads" + java.io.File.separator + relativePath;
+            java.io.File pdfFile = new java.io.File(localPath);
+            if (!pdfFile.exists()) {
+                template.setPdfUrl(null);
+            }
+        }
+        return template;
     }
+
 
     @Override
     @Transactional
