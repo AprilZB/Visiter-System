@@ -250,23 +250,35 @@ public class AphrSyncServiceImpl implements AphrSyncService {
                 u.setSyncedAt(now);
                 toInsertUsers.add(u);
             } else {
-                existing.setAdAccount(adAccount);
-                existing.setName(name);
-                existing.setGender(gender);
-                existing.setAge(age);
-                existing.setBirthDate(birthDateStr);
-                existing.setPhone(phone);
-                existing.setDeptName(fullDeptPath != null ? fullDeptPath : targetDeptName);
-                existing.setStatus(status);
-                existing.setManagerName(managerName);
-                existing.setSyncedAt(now);
-                toUpdateUsers.add(existing);
+                // 精确增量变更检测: 仅当部门、状态、经理、手机等信息发生实际变更时才更新数据库
+                boolean changed = !Objects.equals(existing.getAdAccount(), adAccount)
+                        || !Objects.equals(existing.getName(), name)
+                        || !Objects.equals(existing.getGender(), gender)
+                        || !Objects.equals(existing.getPhone(), phone)
+                        || !Objects.equals(existing.getDeptName(), fullDeptPath != null ? fullDeptPath : targetDeptName)
+                        || !Objects.equals(existing.getStatus(), status)
+                        || !Objects.equals(existing.getManagerName(), managerName);
+
+                if (changed) {
+                    existing.setAdAccount(adAccount);
+                    existing.setName(name);
+                    existing.setGender(gender);
+                    existing.setAge(age);
+                    existing.setBirthDate(birthDateStr);
+                    existing.setPhone(phone);
+                    existing.setDeptName(fullDeptPath != null ? fullDeptPath : targetDeptName);
+                    existing.setStatus(status);
+                    existing.setManagerName(managerName);
+                    existing.setSyncedAt(now);
+                    toUpdateUsers.add(existing);
+                }
             }
         }
 
         for (SysUserSync u : toInsertUsers) sysUserSyncMapper.insert(u);
         for (SysUserSync u : toUpdateUsers) sysUserSyncMapper.updateById(u);
-        System.out.println("👥 人员档案同步 - 新增: " + toInsertUsers.size() + " 人, 更新: " + toUpdateUsers.size() + " 人");
+        System.out.println("👥 人员档案增量同步完成 - 实际新增: " + toInsertUsers.size() + " 人, 实际变更: " + toUpdateUsers.size() + " 人");
+
 
         // 维护部门列表
         List<SysDeptSync> localDepts = sysDeptSyncMapper.selectList(null);

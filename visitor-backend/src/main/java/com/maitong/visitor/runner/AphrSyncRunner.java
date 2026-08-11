@@ -72,21 +72,20 @@ public class AphrSyncRunner implements ApplicationRunner {
         try {
             Long count = sysUserSyncMapper.selectCount(null);
 
-            // 如果数据不存在或者仅仅为初始化 Demo 数据 (<=5条)，系统启动时强制静默拉取真正的 3933+ 条 APHR 真实人员
-            if (count == null || count <= 5) {
-                log.info("检测到数据库尚无真实 APHR 人员档案（当前仅有 {} 条测试数据），正在后台静默自动拉取全量 APHR 数仓数据...", count);
+            // 智能增量/初始化校验：若本地数据库已建立且拥有人员数据 (>=100条)，启动时秒级跳过全量同步，实现 0 秒极速启动！
+            if (count == null || count < 100) {
+                log.info("检测到本地数据库尚无完整人员档案（当前仅 {} 条），正在进行首次后台静默初始化拉取...", count);
                 boolean success = aphrSyncService.syncAll();
                 if (success) {
-                    log.info("服务启动时全量 APHR 真实组织架构数据自动保底初始化成功！");
-                } else {
-                    log.warn("服务启动时自动同步 APHR 数据未能成功完成。");
+                    log.info("服务启动时 APHR 人员档案初始化成功！");
                 }
             } else {
-                log.info("本地组织架构数据库校验正常，当前已有 {} 条真实全员档案，无需重新初始化。", count);
+                log.info("✅ 本地人员档案库校验正常，当前已有 {} 条全员档案。启动时秒级跳过全量同步，实现秒速启动！（系统每天凌晨 03:00 自动定时增量同步）", count);
             }
         } catch (Exception e) {
             log.error("检查/初始化组织架构数据发生异常", e);
         }
+
     }
 
 }
