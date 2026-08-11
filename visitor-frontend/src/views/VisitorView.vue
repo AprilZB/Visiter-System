@@ -176,11 +176,12 @@
       <div v-else-if="isNdaSigned && passToken" class="qr-box">
         <div class="qr-title">限时动态通行二维码</div>
         
-        <!-- 极致稀疏、抗屏幕拍摄摩尔纹的大格子二维码 (仅渲染短 Token 串) -->
+        <!-- 支持手机 (iOS/Android) 自带原生相机/微信直接扫码调起浏览器一键核销放行 -->
         <div class="qr-watermark" style="padding: 12px; background: #fff; display: inline-block; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-          <qrcode-vue :value="shortPassCode" :size="200" level="L" />
+          <qrcode-vue :value="nativeVerifyUrl" :size="200" level="L" />
           <div class="scan-line"></div>
         </div>
+
 
         <!-- 保安免扫强兜底：大字号 8 位短通行码面板 -->
         <div style="margin-top: 12px; background: #fffbe8; border: 1px solid #ffe58f; padding: 10px 16px; border-radius: 8px; text-align: center;">
@@ -282,6 +283,12 @@ const shortPassCode = computed(() => {
   }
   return String(Math.abs(hash)).padStart(6, '9')
 })
+
+const nativeVerifyUrl = computed(() => {
+  if (!passToken.value) return ''
+  return `${window.location.origin}/security?verifyToken=${encodeURIComponent(passToken.value)}`
+})
+
 
 
 

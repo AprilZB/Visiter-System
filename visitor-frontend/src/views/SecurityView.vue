@@ -126,12 +126,15 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
 import QrcodeVue from 'qrcode.vue'
 import axios from 'axios'
 import { Html5Qrcode } from 'html5-qrcode'
 import jsQR from 'jsqr'
+
+const route = useRoute()
 
 const showGateQrModal = ref(false)
 const showCameraModal = ref(false)
@@ -143,6 +146,16 @@ const fileInputRef = ref(null)
 const scanning = ref(false)
 const confirmLoading = ref(false)
 const scanResult = ref(null)
+
+onMounted(() => {
+  const queryToken = route.query.verifyToken || route.query.token
+  if (queryToken) {
+    passTokenInput.value = String(queryToken).trim()
+    showToast('已由原生相机扫码介入，正在自动校验凭证...')
+    handleScan()
+  }
+})
+
 
 let html5QrcodeScanner = null
 
