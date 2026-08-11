@@ -415,12 +415,26 @@ const onMultiDateConfirm = (values) => {
   }
   const startStr = formatDate(start)
   const endStr = formatDate(end)
+  form.visitType = 'MULTI'
   form.visitStartDate = startStr
   form.visitEndDate = endStr
   form.visitDate = startStr
   multiDateDisplay.value = `${startStr} ~ ${endStr}`
   showMultiDatePicker.value = false
 }
+
+const onDateConfirm = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const formatted = `${y}-${m}-${d}`
+  form.visitType = 'SINGLE'
+  form.visitDate = formatted
+  form.visitStartDate = formatted
+  form.visitEndDate = formatted
+  showDatePicker.value = false
+}
+
 
 const form = reactive({
   scenario: 'B',
@@ -457,13 +471,7 @@ const timeRangeColumns = [
   { text: '18:00 ~ 21:00 (夜班段)', start: '18:00', end: '21:00' }
 ]
 
-const onDateConfirm = (date) => {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  form.visitDate = `${y}-${m}-${d}`
-  showDatePicker.value = false
-}
+
 
 const onTimeRangeConfirm = (val) => {
   const selected = val && val.selectedOptions && val.selectedOptions[0] ? val.selectedOptions[0] : null

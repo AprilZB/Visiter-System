@@ -75,22 +75,22 @@
     </van-popup>
 
 
-    <!-- 核验结果展示区 (6 大语义化多色调卡片系统) -->
-    <div v-if="scanResult" class="result-card" :class="'theme-border-' + (scanResult.resultTheme || 'gray')">
-      <!-- 动态 Header Banner -->
-      <div class="result-header" :class="'theme-bg-' + (scanResult.resultTheme || 'gray')">
-        <van-icon :name="getThemeIcon(scanResult.resultTheme)" size="36" />
+    <!-- 核验结果展示区 (放行优先防矛盾机制) -->
+    <div v-if="scanResult" class="result-card" :class="scanResult.canPass ? 'theme-border-green' : ('theme-border-' + (scanResult.resultTheme || 'gray'))">
+      <!-- 动态 Header Banner: 只要 canPass===true 强制高亮绿 -->
+      <div class="result-header" :class="scanResult.canPass ? (scanResult.visitType === 'MULTI' ? 'theme-bg-teal' : 'theme-bg-green') : ('theme-bg-' + (scanResult.resultTheme || 'gray'))">
+        <van-icon :name="scanResult.canPass ? 'checked' : getThemeIcon(scanResult.resultTheme)" size="36" />
         <div style="margin-left: 12px;">
-          <div class="result-title">{{ scanResult.resultTitle || (scanResult.canPass ? '准予放行' : '禁止放行') }}</div>
+          <div class="result-title">{{ scanResult.canPass ? '准予放行' : (scanResult.resultTitle || '禁止放行') }}</div>
           <div style="font-size: 12px; opacity: 0.9; margin-top: 2px;">
-            <span v-if="scanResult.visitType === 'MULTI'">🗓️ 多日通行卡 ({{ scanResult.visitStartDate }} ~ {{ scanResult.visitEndDate }})</span>
+            <span v-if="scanResult.visitType === 'MULTI'">🗓️ 多日通行卡 ({{ scanResult.visitStartDate || '-' }} ~ {{ scanResult.visitEndDate || '-' }})</span>
             <span v-else>🎫 单次到访凭证</span>
           </div>
         </div>
       </div>
 
       <div class="result-body">
-        <van-notice-bar v-if="scanResult.warningMessage" :scrollable="false" wrapable :class="'theme-notice-' + (scanResult.resultTheme || 'gray')" :text="scanResult.warningMessage" />
+        <van-notice-bar v-if="scanResult.warningMessage" :scrollable="false" wrapable :class="scanResult.canPass ? 'theme-notice-green' : ('theme-notice-' + (scanResult.resultTheme || 'gray'))" :text="scanResult.warningMessage" />
 
         <div class="info-group">
           <div class="info-row">
@@ -126,7 +126,7 @@
           </div>
           <div v-if="scanResult.visitType === 'MULTI'" class="info-row" style="background: #e6f7ff; padding: 6px 10px; border-radius: 6px;">
             <span class="label" style="color: #1890ff; font-weight: bold;">通行统计:</span>
-            <span class="value" style="color: #096dd9; font-weight: bold;">在有效期内，今日累计打卡 {{ scanResult.todayEntryCount }} 次</span>
+            <span class="value" style="color: #096dd9; font-weight: bold;">在有效期内，今日累计打卡 {{ scanResult.todayEntryCount || 0 }} 次</span>
           </div>
         </div>
 
@@ -134,40 +134,40 @@
           <van-icon name="info-o" /> 请仔细核对来访人员物理身份证姓名与上面脱敏 4 位数据，一致后点击对应放行按钮。
         </div>
 
-        <!-- 智能动态操作按钮组 -->
+        <!-- 智能动态操作按钮组 (准予放行优先判定，杜绝由于未匹配分支导致滑入 disabled 的矛盾) -->
         <div class="action-box" style="margin-top: 16px;">
-          <!-- 1. 准予放行 (单次通行) -->
-          <van-button v-if="scanResult.resultCode === 'PASS'" type="primary" block round size="large" color="#07c160" :loading="confirmLoading" @click="confirmEntry">
-            ✅ 人证一致，一键确认放行与销号 (单次作废)
-          </van-button>
+          <!-- 核心法则 1: 只要准予放行 (canPass === true) 100% 出现绿色点击按钮 -->
+          <template v-if="scanResult.canPass">
+            <van-button v-if="scanResult.visitType === 'MULTI'" type="primary" block round size="large" color="#00b578" :loading="confirmLoading" @click="confirmEntry">
+              🟩 人证比对一致，确认本次放行打卡 (多日凭证保持有效)
+            </van-button>
+            <van-button v-else type="primary" block round size="large" color="#07c160" :loading="confirmLoading" @click="confirmEntry">
+              ✅ 人证比对一致，一键确认放行与销号 (单次作废)
+            </van-button>
+          </template>
 
-          <!-- 2. 准予放行 (多日通行) -->
-          <van-button v-else-if="scanResult.resultCode === 'PASS_MULTI'" type="primary" block round size="large" color="#00b578" :loading="confirmLoading" @click="confirmEntry">
-            🟩 人证一致，确认本次放行打卡 (多日凭证保持有效)
-          </van-button>
+          <!-- 核心法则 2: 真正拦截阻断场景 (canPass === false) -->
+          <template v-else>
+            <van-button v-if="scanResult.resultCode === 'NOT_FOUND'" type="primary" block round size="large" color="#1890ff" @click="showGateQrModal = true">
+              📱 弹出现场盲来二维码，引导访客扫码填报
+            </van-button>
 
-          <!-- 3. 信息不存在 -->
-          <van-button v-else-if="scanResult.resultCode === 'NOT_FOUND'" type="primary" block round size="large" color="#1890ff" @click="showGateQrModal = true">
-            📱 弹出现场盲来二维码，引导访客扫码填报
-          </van-button>
+            <van-button v-else-if="scanResult.resultCode === 'NO_NDA'" type="danger" block round size="large">
+              🛑 提示访客在手机端完成保密协议签署
+            </van-button>
 
-          <!-- 4. 未签署 NDA 协议 -->
-          <van-button v-else-if="scanResult.resultCode === 'NO_NDA'" type="danger" block round size="large">
-            🛑 提示访客在手机端完成保密协议签署
-          </van-button>
+            <van-button v-else-if="scanResult.resultCode === 'PENDING_APPROVAL'" type="warning" block round size="large">
+              ⏰ 提示受访员工 ({{ scanResult.hostName }}) 完成到访审批
+            </van-button>
 
-          <!-- 5. 待受访人审批 -->
-          <van-button v-else-if="scanResult.resultCode === 'PENDING_APPROVAL'" type="warning" block round size="large">
-            ⏰ 提示受访员工 ({{ scanResult.hostName }}) 完成到访审批
-          </van-button>
-
-          <!-- 6. 通行码已被使用 / 已过期 / 已拒绝 -->
-          <van-button v-else disabled block round size="large">
-            ⛔ {{ scanResult.resultTitle }} (不可放行)
-          </van-button>
+            <van-button v-else disabled block round size="large">
+              ⛔ {{ scanResult.warningMessage || scanResult.resultTitle || '禁止放行' }}
+            </van-button>
+          </template>
         </div>
       </div>
     </div>
+
 
   </div>
 </template>
