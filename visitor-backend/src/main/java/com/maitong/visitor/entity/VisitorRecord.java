@@ -24,10 +24,14 @@ public class VisitorRecord {
     private String visitPurpose;
     private LocalDateTime visitTime;
     private String visitDate;
+    private String visitType; // SINGLE: 单次放行, MULTI: 多日多次通行
+    private String visitStartDate; // 2026-08-11
+    private String visitEndDate;   // 2026-08-15
     private String visitStartTime;
     private String visitEndTime;
     private String email;
     private String company;
+
     private String visitorToken;
     private Integer escalated; // 0:未上报, 1:已上报直属主管
     private LocalDateTime escalatedAt;
@@ -133,7 +137,14 @@ public class VisitorRecord {
     public String getApproveToken() { return approveToken; }
 
 
-    public void setApproveToken(String approveToken) { this.approveToken = approveToken; }
+    public String getVisitType() { return visitType; }
+    public void setVisitType(String visitType) { this.visitType = visitType; }
+
+    public String getVisitStartDate() { return visitStartDate; }
+    public void setVisitStartDate(String visitStartDate) { this.visitStartDate = visitStartDate; }
+
+    public String getVisitEndDate() { return visitEndDate; }
+    public void setVisitEndDate(String visitEndDate) { this.visitEndDate = visitEndDate; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 
@@ -142,4 +153,5 @@ public class VisitorRecord {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
+
 

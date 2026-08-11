@@ -88,18 +88,44 @@
           </van-popup>
 
           <!-- 到访日期与时间段选择 -->
+          <!-- 通行类型选择 -->
+          <van-field name="visitType" label="通行模式" required>
+            <template #input>
+              <van-radio-group v-model="form.visitType" direction="horizontal">
+                <van-radio name="SINGLE">单次到访</van-radio>
+                <van-radio name="MULTI">连续多日通行</van-radio>
+              </van-radio-group>
+            </template>
+          </van-field>
+
           <van-field
+            v-if="form.visitType === 'SINGLE'"
             v-model="form.visitDate"
             is-link
             readonly
             name="visitDate"
             label="到访日期"
-            placeholder="请选择拟到访日期"
+            placeholder="请选择到访日期"
             required
             :rules="[{ required: true }]"
             @click="showDatePicker = true"
           />
+          <van-field
+            v-else
+            v-model="multiDateDisplay"
+            is-link
+            readonly
+            name="multiDateRange"
+            label="通行日期范围"
+            placeholder="请选择多日通行的起止日期"
+            required
+            :rules="[{ required: true }]"
+            @click="showMultiDatePicker = true"
+          />
+
           <van-calendar v-model:show="showDatePicker" @confirm="onDateConfirm" />
+          <van-calendar v-model:show="showMultiDatePicker" type="range" @confirm="onMultiDateConfirm" />
+
 
           <van-field
             v-model="timeRangeDisplay"
@@ -365,7 +391,25 @@ const onFindTokenConfirm = async (action) => {
 }
 
 const timeRangeDisplay = ref('09:00 ~ 18:00 (全天段)')
+const showMultiDatePicker = ref(false)
+const multiDateDisplay = ref(`${todayStr} ~ ${todayStr}`)
 
+const onMultiDateConfirm = (values) => {
+  const [start, end] = values
+  const formatDate = (date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  const startStr = formatDate(start)
+  const endStr = formatDate(end)
+  form.visitStartDate = startStr
+  form.visitEndDate = endStr
+  form.visitDate = startStr
+  multiDateDisplay.value = `${startStr} ~ ${endStr}`
+  showMultiDatePicker.value = false
+}
 
 const form = reactive({
   scenario: 'B',
@@ -374,10 +418,14 @@ const form = reactive({
   phone: '',
   hostUserId: null,
   visitPurpose: '',
+  visitType: 'SINGLE',
   visitDate: todayStr,
+  visitStartDate: todayStr,
+  visitEndDate: todayStr,
   visitStartTime: '09:00',
   visitEndTime: '18:00'
 })
+
 
 const selectedDeptName = ref('')
 const selectedHostName = ref('')

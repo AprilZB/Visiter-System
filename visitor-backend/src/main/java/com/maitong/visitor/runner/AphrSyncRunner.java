@@ -62,7 +62,27 @@ public class AphrSyncRunner implements ApplicationRunner {
                 try {
                     conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN escalated_at DATETIME");
                 } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_type VARCHAR(20) DEFAULT 'SINGLE'");
+                } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_start_date VARCHAR(20)");
+                } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("ALTER TABLE visitor_records ADD COLUMN visit_end_date VARCHAR(20)");
+                } catch (Exception ignored) {}
+                try {
+                    conn.createStatement().execute("CREATE TABLE IF NOT EXISTS visitor_entry_logs ("
+                            + "id BIGINT AUTO_INCREMENT PRIMARY KEY, "
+                            + "visit_no VARCHAR(50) NOT NULL, "
+                            + "visitor_name VARCHAR(50), "
+                            + "entry_time DATETIME NOT NULL, "
+                            + "verified_by VARCHAR(50), "
+                            + "entry_type VARCHAR(10) DEFAULT 'IN'"
+                            + ")");
+                } catch (Exception ignored) {}
             }
+
 
 
 

@@ -13,8 +13,10 @@ import com.maitong.visitor.util.CryptoUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +69,12 @@ public class VisitorServiceImpl implements VisitorService {
         record.setVisitPurpose(dto.getVisitPurpose() != null ? dto.getVisitPurpose() : "业务交流");
         record.setVisitTime(LocalDateTime.now());
         record.setVisitDate(dto.getVisitDate() != null ? dto.getVisitDate() : java.time.LocalDate.now().toString());
+        record.setVisitType(dto.getVisitType() != null ? dto.getVisitType() : "SINGLE");
+        record.setVisitStartDate(dto.getVisitStartDate() != null ? dto.getVisitStartDate() : record.getVisitDate());
+        record.setVisitEndDate(dto.getVisitEndDate() != null ? dto.getVisitEndDate() : record.getVisitDate());
         record.setVisitStartTime(dto.getVisitStartTime() != null ? dto.getVisitStartTime() : "09:00");
         record.setVisitEndTime(dto.getVisitEndTime() != null ? dto.getVisitEndTime() : "18:00");
+
         record.setNdaSigned(0);
 
         String approveToken = java.util.UUID.randomUUID().toString().replace("-", "");
@@ -177,11 +183,17 @@ public class VisitorServiceImpl implements VisitorService {
         return record.getPassToken();
     }
 
+    @Autowired
+    private com.maitong.visitor.mapper.VisitorEntryLogMapper visitorEntryLogMapper;
+
     @Override
     public SecurityScanDTO securityScanVerify(String passToken) {
         SecurityScanDTO dto = new SecurityScanDTO();
         if (passToken == null || passToken.trim().isEmpty()) {
             dto.setCanPass(false);
+            dto.setResultCode("NOT_FOUND");
+            dto.setResultTitle("扫码信息不存在");
+            dto.setResultTheme("gray");
             dto.setWarningMessage("无效的通行二维码");
             return dto;
         }
@@ -212,7 +224,7 @@ public class VisitorServiceImpl implements VisitorService {
         }
 
         if (record == null) {
-            // 二次 Fallback: 尝试按手机号检索该手机号最新的到访申请单，确保门岗无论拦截与否都能清晰展示访客身份
+            // 二次 Fallback: 尝试按手机号检索该手机号最新的到访申请单
             LambdaQueryWrapper<VisitorRecord> phoneWrapper = new LambdaQueryWrapper<>();
             phoneWrapper.eq(VisitorRecord::getPhone, queryStr)
                         .orderByDesc(VisitorRecord::getId).last("LIMIT 1");
@@ -220,13 +232,27 @@ public class VisitorServiceImpl implements VisitorService {
             
             if (record == null) {
                 dto.setCanPass(false);
-                dto.setWarningMessage("通行凭证不匹配且未查询到该手机号的历史申请单");
+                dto.setResultCode("NOT_FOUND");
+                dto.setResultTitle("扫码信息不存在");
+                dto.setResultTheme("gray");
+                dto.setWarningMessage("【未查到记录】无效通行凭证或未查询到申请单据");
                 return dto;
             }
         }
 
+        // 装填多日/多次通行相关数据
+        dto.setVisitType(record.getVisitType() != null ? record.getVisitType() : "SINGLE");
+        dto.setVisitStartDate(record.getVisitStartDate() != null ? record.getVisitStartDate() : record.getVisitDate());
+        dto.setVisitEndDate(record.getVisitEndDate() != null ? record.getVisitEndDate() : record.getVisitDate());
 
-        // 统一全量装填访客基本信息（保证保安端绝不出现空白行）
+        // 统计打卡次数
+        if (visitorEntryLogMapper != null && record.getVisitNo() != null) {
+            LambdaQueryWrapper<com.maitong.visitor.entity.VisitorEntryLog> logW = new LambdaQueryWrapper<>();
+            logW.eq(com.maitong.visitor.entity.VisitorEntryLog::getVisitNo, record.getVisitNo());
+            dto.setTodayEntryCount(Math.toIntExact(visitorEntryLogMapper.selectCount(logW)));
+        }
+
+        // 统一全量装填访客基本信息
         dto.setVisitNo(record.getVisitNo());
         dto.setVisitorName(record.getVisitorName() != null ? record.getVisitorName() : "未录入姓名");
         dto.setIdCardMasked(record.getIdCardMasked() != null ? record.getIdCardMasked() : "未录入身份证");
@@ -237,32 +263,85 @@ public class VisitorServiceImpl implements VisitorService {
         dto.setStatus(record.getStatus());
         dto.setNdaSigned(record.getNdaSigned() != null && record.getNdaSigned() == 1);
 
+        // 1. 保密协议未签拦截 (朱红色 red)
         if (!dto.isNdaSigned()) {
             dto.setCanPass(false);
-            dto.setWarningMessage("【拦截】访客(" + dto.getVisitorName() + ")尚未签署保密协议 (NDA)！禁止放行！");
+            dto.setResultCode("NO_NDA");
+            dto.setResultTitle("未签署保密协议 (NDA)");
+            dto.setResultTheme("red");
+            dto.setWarningMessage("【强行拦截】访客(" + dto.getVisitorName() + ")尚未在线签署保密协议，禁止放行！");
             return dto;
         }
 
-        if ("ENTERED".equalsIgnoreCase(record.getStatus())) {
-            dto.setCanPass(false);
-            dto.setWarningMessage("【警告】访客(" + dto.getVisitorName() + ")的通行码已经核销放行过，请勿重复放行！");
-            return dto;
-        }
-
-        if ("PENDING_APPROVAL".equalsIgnoreCase(record.getStatus())) {
-            dto.setCanPass(false);
-            dto.setWarningMessage("【拦截】访客(" + dto.getVisitorName() + ")的申请仍处于待员工审批状态！");
-            return dto;
-        }
-
+        // 2. 受访员工已拒绝 (深紫红 purple)
         if ("REJECTED".equalsIgnoreCase(record.getStatus())) {
             dto.setCanPass(false);
-            dto.setWarningMessage("【拒绝】受访员工已拒绝访客(" + dto.getVisitorName() + ")的到访申请");
+            dto.setResultCode("REJECTED");
+            dto.setResultTitle("审批未通过 - 已拒绝");
+            dto.setResultTheme("purple");
+            dto.setWarningMessage("【已被拒绝】受访员工已拒绝访客(" + dto.getVisitorName() + ")的到访申请");
             return dto;
         }
 
+        // 3. 待受访员工审批 (暖橙色 orange)
+        if ("PENDING_APPROVAL".equalsIgnoreCase(record.getStatus())) {
+            dto.setCanPass(false);
+            dto.setResultCode("PENDING_APPROVAL");
+            dto.setResultTitle("审批未通过 - 待审批");
+            dto.setResultTheme("orange");
+            dto.setWarningMessage("【待审批】受访员工尚未点击同意放行！请提醒受访人审批。");
+            return dto;
+        }
+
+        // 4. 单次到访且已经使用过 (克莱因蓝 blue)
+        if ("SINGLE".equalsIgnoreCase(dto.getVisitType()) && "ENTERED".equalsIgnoreCase(record.getStatus())) {
+            dto.setCanPass(false);
+            dto.setResultCode("USED");
+            dto.setResultTitle("重复已使用 (单次作废)");
+            dto.setResultTheme("blue");
+            dto.setWarningMessage("【已核销作废】此单次通行码已经核销放行过，请勿重复放行！");
+            return dto;
+        }
+
+        // 5. 多日/多次通行校验：检查是否在有效期内
+        if ("MULTI".equalsIgnoreCase(dto.getVisitType())) {
+            String todayStr = LocalDate.now().toString();
+            String startDate = dto.getVisitStartDate() != null ? dto.getVisitStartDate() : todayStr;
+            String endDate = dto.getVisitEndDate() != null ? dto.getVisitEndDate() : todayStr;
+
+            if (todayStr.compareTo(endDate) > 0) {
+                // 已经超过截止日期 (暗钴蓝 darkgray)
+                dto.setCanPass(false);
+                dto.setResultCode("EXPIRED");
+                dto.setResultTitle("多日通行凭证已过期");
+                dto.setResultTheme("darkgray");
+                dto.setWarningMessage("【凭证过期】该多日凭证已于 " + endDate + " 截止到期，禁止放行！");
+                return dto;
+            } else if (todayStr.compareTo(startDate) < 0) {
+                // 未到预约生效日期 (暗钴蓝 darkgray)
+                dto.setCanPass(false);
+                dto.setResultCode("NOT_YET_VALID");
+                dto.setResultTitle("通行凭证未生效");
+                dto.setResultTheme("darkgray");
+                dto.setWarningMessage("【未到日期】该凭证将于 " + startDate + " 生效，当前暂不可进出。");
+                return dto;
+            } else {
+                // 在有效期内准予放行 (翡翠绿 teal)
+                dto.setCanPass(true);
+                dto.setResultCode("PASS_MULTI");
+                dto.setResultTitle("准予放行 (多日通行卡)");
+                dto.setResultTheme("teal");
+                dto.setWarningMessage("【多日通行卡】在有效期(" + startDate + " ~ " + endDate + ")内，已累计入园打卡 " + dto.getTodayEntryCount() + " 次");
+                return dto;
+            }
+        }
+
+        // 6. 正常单次通行准予放行 (薄荷绿 green)
         dto.setCanPass(true);
-        dto.setWarningMessage("人证比对一致，可予以确认放行");
+        dto.setResultCode("PASS");
+        dto.setResultTitle("准予放行 (单次通行)");
+        dto.setResultTheme("green");
+        dto.setWarningMessage("人证比对一致，符合入园条件");
         return dto;
 
     }
@@ -272,12 +351,35 @@ public class VisitorServiceImpl implements VisitorService {
         VisitorRecord record = getByVisitNo(visitNo);
         if (record == null) return false;
 
-        record.setStatus("ENTERED");
-        record.setVerifiedBy(securityName != null ? securityName : "门岗保安");
-        record.setVerifiedAt(LocalDateTime.now());
-        record.setPassToken(null); // 立即核销作废动态码
-        return visitorRecordMapper.updateById(record) > 0;
+        String secName = (securityName != null ? securityName : "门岗保安");
+
+        // 写入到访出入流水日志
+        if (visitorEntryLogMapper != null) {
+            com.maitong.visitor.entity.VisitorEntryLog entryLog = new com.maitong.visitor.entity.VisitorEntryLog();
+            entryLog.setVisitNo(record.getVisitNo());
+            entryLog.setVisitorName(record.getVisitorName());
+            entryLog.setEntryTime(LocalDateTime.now());
+            entryLog.setVerifiedBy(secName);
+            entryLog.setEntryType("IN");
+            visitorEntryLogMapper.insert(entryLog);
+        }
+
+        // 判断通行模式
+        if ("MULTI".equalsIgnoreCase(record.getVisitType())) {
+            // 多日通行模式：保留 passToken 与凭证状态，仅更新验证信息
+            record.setVerifiedBy(secName);
+            record.setVerifiedAt(LocalDateTime.now());
+            return visitorRecordMapper.updateById(record) > 0;
+        } else {
+            // 单次通行模式：一次性核销作废动态码
+            record.setStatus("ENTERED");
+            record.setVerifiedBy(secName);
+            record.setVerifiedAt(LocalDateTime.now());
+            record.setPassToken(null);
+            return visitorRecordMapper.updateById(record) > 0;
+        }
     }
+
 
     @Override
     public VisitorRecord getByVisitNo(String visitNo) {

@@ -16,6 +16,17 @@ public class SecurityScanDTO {
     private boolean canPass; // 是否允许放行
     private String warningMessage;
 
+    // 多状态语义化分类及色彩控制
+    private String resultCode; // PASS, PASS_MULTI, EXPIRED, NOT_FOUND, USED, PENDING_APPROVAL, REJECTED, NO_NDA
+    private String resultTitle; // 如："准予放行(单次)"、"准予放行(多日通行)"、"多日凭证已过期"
+    private String resultTheme; // green, teal, darkgray, gray, blue, orange, purple, red
+
+    // 多日/多次到访相关
+    private String visitType;     // SINGLE, MULTI
+    private String visitStartDate;// 2026-08-11
+    private String visitEndDate;  // 2026-08-15
+    private int todayEntryCount;  // 今日已进出打卡次数
+
     public String getVisitNo() { return visitNo; }
     public void setVisitNo(String visitNo) { this.visitNo = visitNo; }
 
@@ -48,5 +59,27 @@ public class SecurityScanDTO {
 
     public String getWarningMessage() { return warningMessage; }
     public void setWarningMessage(String warningMessage) { this.warningMessage = warningMessage; }
+
+    public String getResultCode() { return resultCode; }
+    public void setResultCode(String resultCode) { this.resultCode = resultCode; }
+
+    public String getResultTitle() { return resultTitle; }
+    public void setResultTitle(String resultTitle) { this.resultTitle = resultTitle; }
+
+    public String getResultTheme() { return resultTheme; }
+    public void setResultTheme(String resultTheme) { this.resultTheme = resultTheme; }
+
+    public String getVisitType() { return visitType; }
+    public void setVisitType(String visitType) { this.visitType = visitType; }
+
+    public String getVisitStartDate() { return visitStartDate; }
+    public void setVisitStartDate(String visitStartDate) { this.visitStartDate = visitStartDate; }
+
+    public String getVisitEndDate() { return visitEndDate; }
+    public void setVisitEndDate(String visitEndDate) { this.visitEndDate = visitEndDate; }
+
+    public int getTodayEntryCount() { return todayEntryCount; }
+    public void setTodayEntryCount(int todayEntryCount) { this.todayEntryCount = todayEntryCount; }
 }
+
 

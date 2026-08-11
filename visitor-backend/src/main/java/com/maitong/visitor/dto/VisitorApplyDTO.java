@@ -43,8 +43,18 @@ public class VisitorApplyDTO {
     public String getVisitStartTime() { return visitStartTime; }
     public void setVisitStartTime(String visitStartTime) { this.visitStartTime = visitStartTime; }
 
-    public String getVisitEndTime() { return visitEndTime; }
-    public void setVisitEndTime(String visitEndTime) { this.visitEndTime = visitEndTime; }
+    private String visitType; // SINGLE, MULTI
+    private String visitStartDate;
+    private String visitEndDate;
 
+    public String getVisitType() { return visitType; }
+    public void setVisitType(String visitType) { this.visitType = visitType; }
+
+    public String getVisitStartDate() { return visitStartDate; }
+    public void setVisitStartDate(String visitStartDate) { this.visitStartDate = visitStartDate; }
+
+    public String getVisitEndDate() { return visitEndDate; }
+    public void setVisitEndDate(String visitEndDate) { this.visitEndDate = visitEndDate; }
 }
+
 

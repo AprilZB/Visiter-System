@@ -75,20 +75,31 @@
     </van-popup>
 
 
-    <!-- 核验结果展示区 (脱敏合规) -->
-    <div v-if="scanResult" class="result-card" :class="scanResult.canPass ? 'border-success' : 'border-danger'">
-      <div class="result-header" :class="scanResult.canPass ? 'bg-success' : 'bg-danger'">
-        <van-icon :name="scanResult.canPass ? 'checked' : 'clear'" size="32" />
-        <div class="result-title">{{ scanResult.canPass ? '【准予放行】' : '【禁止放行】' }}</div>
+    <!-- 核验结果展示区 (6 大语义化多色调卡片系统) -->
+    <div v-if="scanResult" class="result-card" :class="'theme-border-' + (scanResult.resultTheme || 'gray')">
+      <!-- 动态 Header Banner -->
+      <div class="result-header" :class="'theme-bg-' + (scanResult.resultTheme || 'gray')">
+        <van-icon :name="getThemeIcon(scanResult.resultTheme)" size="36" />
+        <div style="margin-left: 12px;">
+          <div class="result-title">{{ scanResult.resultTitle || (scanResult.canPass ? '准予放行' : '禁止放行') }}</div>
+          <div style="font-size: 12px; opacity: 0.9; margin-top: 2px;">
+            <span v-if="scanResult.visitType === 'MULTI'">🗓️ 多日通行卡 ({{ scanResult.visitStartDate }} ~ {{ scanResult.visitEndDate }})</span>
+            <span v-else>🎫 单次到访凭证</span>
+          </div>
+        </div>
       </div>
 
       <div class="result-body">
-        <van-notice-bar v-if="scanResult.warningMessage" :type="scanResult.canPass ? 'success' : 'danger'" :text="scanResult.warningMessage" />
+        <van-notice-bar v-if="scanResult.warningMessage" :scrollable="false" wrapable :class="'theme-notice-' + (scanResult.resultTheme || 'gray')" :text="scanResult.warningMessage" />
 
         <div class="info-group">
           <div class="info-row">
+            <span class="label">到访单号:</span>
+            <span class="value font-mono">{{ scanResult.visitNo || '-' }}</span>
+          </div>
+          <div class="info-row">
             <span class="label">访客姓名:</span>
-            <span class="value font-bold">{{ scanResult.visitorName }}</span>
+            <span class="value font-bold" style="font-size: 16px;">{{ scanResult.visitorName }}</span>
           </div>
           <!-- 强脱敏显示掩码身份证 -->
           <div class="info-row">
@@ -104,24 +115,60 @@
             <span class="value">{{ scanResult.hostName }} ({{ scanResult.hostDept }})</span>
           </div>
           <div class="info-row">
+            <span class="label">到访目的:</span>
+            <span class="value">{{ scanResult.visitPurpose }}</span>
+          </div>
+          <div class="info-row">
             <span class="label">保密协议:</span>
             <span class="value" :class="scanResult.ndaSigned ? 'text-green' : 'text-red'">
-              {{ scanResult.ndaSigned ? '已签署存证' : '未签署 (不可放行)' }}
+              {{ scanResult.ndaSigned ? '已签署存证' : '未签署 (禁止放行)' }}
             </span>
+          </div>
+          <div v-if="scanResult.visitType === 'MULTI'" class="info-row" style="background: #e6f7ff; padding: 6px 10px; border-radius: 6px;">
+            <span class="label" style="color: #1890ff; font-weight: bold;">通行统计:</span>
+            <span class="value" style="color: #096dd9; font-weight: bold;">在有效期内，今日累计打卡 {{ scanResult.todayEntryCount }} 次</span>
           </div>
         </div>
 
         <div class="security-tip">
-          <van-icon name="info-o" /> 请仔细核对来访人员物理身份证姓名与上面脱敏 4 位数据，一致后点击一键放行。
+          <van-icon name="info-o" /> 请仔细核对来访人员物理身份证姓名与上面脱敏 4 位数据，一致后点击对应放行按钮。
         </div>
 
-        <div v-if="scanResult.canPass" class="action-box">
-          <van-button type="success" block round size="large" :loading="confirmLoading" @click="confirmEntry">
-            核对一致，一键确认放行与销号
+        <!-- 智能动态操作按钮组 -->
+        <div class="action-box" style="margin-top: 16px;">
+          <!-- 1. 准予放行 (单次通行) -->
+          <van-button v-if="scanResult.resultCode === 'PASS'" type="primary" block round size="large" color="#07c160" :loading="confirmLoading" @click="confirmEntry">
+            ✅ 人证一致，一键确认放行与销号 (单次作废)
+          </van-button>
+
+          <!-- 2. 准予放行 (多日通行) -->
+          <van-button v-else-if="scanResult.resultCode === 'PASS_MULTI'" type="primary" block round size="large" color="#00b578" :loading="confirmLoading" @click="confirmEntry">
+            🟩 人证一致，确认本次放行打卡 (多日凭证保持有效)
+          </van-button>
+
+          <!-- 3. 信息不存在 -->
+          <van-button v-else-if="scanResult.resultCode === 'NOT_FOUND'" type="primary" block round size="large" color="#1890ff" @click="showGateQrModal = true">
+            📱 弹出现场盲来二维码，引导访客扫码填报
+          </van-button>
+
+          <!-- 4. 未签署 NDA 协议 -->
+          <van-button v-else-if="scanResult.resultCode === 'NO_NDA'" type="danger" block round size="large">
+            🛑 提示访客在手机端完成保密协议签署
+          </van-button>
+
+          <!-- 5. 待受访人审批 -->
+          <van-button v-else-if="scanResult.resultCode === 'PENDING_APPROVAL'" type="warning" block round size="large">
+            ⏰ 提示受访员工 ({{ scanResult.hostName }}) 完成到访审批
+          </van-button>
+
+          <!-- 6. 通行码已被使用 / 已过期 / 已拒绝 -->
+          <van-button v-else disabled block round size="large">
+            ⛔ {{ scanResult.resultTitle }} (不可放行)
           </van-button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -367,6 +414,20 @@ const handleScan = async () => {
 
 const securityKey = ref(localStorage.getItem('SECURITY_AUTH_KEY') || '123456')
 
+const getThemeIcon = (theme) => {
+  switch (theme) {
+    case 'green': return 'checked'
+    case 'teal': return 'passed'
+    case 'darkgray': return 'clock-o'
+    case 'gray': return 'question-o'
+    case 'blue': return 'info-o'
+    case 'orange': return 'underway-o'
+    case 'purple': return 'close'
+    case 'red': return 'clear'
+    default: return 'info-o'
+  }
+}
+
 const confirmEntry = async () => {
   if (!scanResult.value || !scanResult.value.visitNo) return
   confirmLoading.value = true
@@ -377,7 +438,11 @@ const confirmEntry = async () => {
       securityKey: securityKey.value
     })
     if (res.data.code === 200) {
-      showSuccessToast('放行核销成功！动态通行码已一次性作废')
+      if (scanResult.value.visitType === 'MULTI') {
+        showSuccessToast('打卡放行成功！多日凭证保持有效')
+      } else {
+        showSuccessToast('放行核销成功！单次凭证已作废')
+      }
       scanResult.value = null
       passTokenInput.value = ''
     } else {
@@ -390,6 +455,7 @@ const confirmEntry = async () => {
   }
 }
 
+
 </script>
 
 <style scoped>
@@ -397,15 +463,9 @@ const confirmEntry = async () => {
 .scan-card { margin: 16px; padding: 16px; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .scan-title { font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #323233; }
 
-.result-card { margin: 16px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); border: 2px solid transparent; }
-.border-success { border-color: #07c160; }
-.border-danger { border-color: #ee0a24; }
-
-.result-header { padding: 20px; color: #fff; display: flex; align-items: center; justify-content: center; }
-.bg-success { background: linear-gradient(135deg, #07c160, #049b4c); }
-.bg-danger { background: linear-gradient(135deg, #ee0a24, #c00000); }
-.result-title { font-size: 20px; font-weight: bold; margin-left: 8px; }
-
+.result-card { margin: 16px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.result-header { padding: 16px 20px; display: flex; align-items: center; color: #fff; }
+.result-title { font-size: 20px; font-weight: bold; }
 .result-body { padding: 16px; }
 .info-group { margin-top: 16px; background: #f7f8fa; padding: 12px; border-radius: 8px; }
 .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
@@ -419,4 +479,38 @@ const confirmEntry = async () => {
 
 .text-green { color: #07c160; font-weight: bold; }
 .text-red { color: #ee0a24; font-weight: bold; }
+
+/* 多色调语义化 UI 卡片样式系 */
+.theme-bg-green { background: linear-gradient(135deg, #07c160, #00b578); color: #fff; }
+.theme-border-green { border-left: 6px solid #07c160; }
+.theme-notice-green { background: #e8f8f0; color: #07c160; }
+
+.theme-bg-teal { background: linear-gradient(135deg, #00b578, #10b981); color: #fff; }
+.theme-border-teal { border-left: 6px solid #00b578; }
+.theme-notice-teal { background: #e6f7f3; color: #00b578; }
+
+.theme-bg-darkgray { background: linear-gradient(135deg, #595959, #434343); color: #fff; }
+.theme-border-darkgray { border-left: 6px solid #434343; }
+.theme-notice-darkgray { background: #f0f0f0; color: #434343; }
+
+.theme-bg-gray { background: linear-gradient(135deg, #8c8c8c, #595959); color: #fff; }
+.theme-border-gray { border-left: 6px solid #8c8c8c; }
+.theme-notice-gray { background: #f5f5f5; color: #595959; }
+
+.theme-bg-blue { background: linear-gradient(135deg, #1890ff, #096dd9); color: #fff; }
+.theme-border-blue { border-left: 6px solid #1890ff; }
+.theme-notice-blue { background: #e6f7ff; color: #096dd9; }
+
+.theme-bg-orange { background: linear-gradient(135deg, #fa8c16, #d46b08); color: #fff; }
+.theme-border-orange { border-left: 6px solid #fa8c16; }
+.theme-notice-orange { background: #fff7e6; color: #d46b08; }
+
+.theme-bg-purple { background: linear-gradient(135deg, #722ed1, #531dab); color: #fff; }
+.theme-border-purple { border-left: 6px solid #722ed1; }
+.theme-notice-purple { background: #f9f0ff; color: #531dab; }
+
+.theme-bg-red { background: linear-gradient(135deg, #f5222d, #cf1322); color: #fff; }
+.theme-border-red { border-left: 6px solid #f5222d; }
+.theme-notice-red { background: #fff1f0; color: #cf1322; }
 </style>
+
