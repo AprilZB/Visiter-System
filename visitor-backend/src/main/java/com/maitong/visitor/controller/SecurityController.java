@@ -26,12 +26,18 @@ public class SecurityController {
     }
 
     /**
-     * 2. 保安核对物理证件一致后点击【确认放行】
+     * 2. 保安核对物理证件一致后点击【确认放行】(带门岗岗位防越权校验)
      */
     @PostMapping("/confirm-entry")
     public Result<Boolean> confirmEntry(@RequestBody Map<String, String> body) {
         String visitNo = body.get("visitNo");
         String securityName = body.getOrDefault("securityName", "门岗保安");
+        String securityKey = body.get("securityKey");
+
+        // 安全防越权机制: 只有持有门岗授权口令(默认123456)的保安手机才能点击放行销号
+        if (securityKey == null || !"123456".equals(securityKey.trim())) {
+            return Result.error("【越权阻断】非授权门岗保安设备，无权执行放行销号！请将手机出示给正门保安。");
+        }
 
         if (visitNo == null || visitNo.trim().isEmpty()) {
             return Result.error("缺少访客单号");
@@ -43,6 +49,7 @@ public class SecurityController {
         }
         return Result.error("放行核销失败");
     }
+
 
     @Autowired
     private com.maitong.visitor.service.OcrService ocrService;

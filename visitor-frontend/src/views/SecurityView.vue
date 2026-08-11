@@ -356,16 +356,19 @@ const handleScan = async () => {
   }
 }
 
+const securityKey = ref(localStorage.getItem('SECURITY_AUTH_KEY') || '123456')
+
 const confirmEntry = async () => {
   if (!scanResult.value || !scanResult.value.visitNo) return
   confirmLoading.value = true
   try {
     const res = await axios.post('/api/security/confirm-entry', {
       visitNo: scanResult.value.visitNo,
-      securityName: '门岗保安(一号岗)'
+      securityName: '门岗保安(一号岗)',
+      securityKey: securityKey.value
     })
     if (res.data.code === 200) {
-      showSuccessToast('放行核销成功！动态通行码已作废')
+      showSuccessToast('放行核销成功！动态通行码已一次性作废')
       scanResult.value = null
       passTokenInput.value = ''
     } else {
@@ -377,6 +380,7 @@ const confirmEntry = async () => {
     confirmLoading.value = false
   }
 }
+
 </script>
 
 <style scoped>
